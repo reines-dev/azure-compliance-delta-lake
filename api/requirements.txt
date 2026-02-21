@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+azure-identity
+azure-storage-blob
+deltalake
+pandas
+pyarrow
+rapidfuzz
+requests
+python-dotenv
+fsspec
+adlfs

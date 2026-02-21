@@ -1,0 +1,29 @@
+# Entornos Virtuales
+.venv/
+env/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Azure & Configuración (SECRETOS)
+.env
+local.settings.json
+azure_functions/local.settings.json
+*.tfstate
+*.tfstate.backup
+
+# Datos temporales
+*.parquet
+*.csv
+_last_run.txt
+
+# VS Code & OS
+.vscode/
+.DS_Store
+Thumbs.db
