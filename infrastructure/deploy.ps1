@@ -5,7 +5,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$SubscriptionId = "91a951e6-4f42-4b04-b903-453ada37d059"
+$SubscriptionId = "xxxxxxxxx"
 Write-Host "Estableciendo suscripcion activa: $SubscriptionId" -ForegroundColor Cyan
 az account set --subscription $SubscriptionId
 
