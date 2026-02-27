@@ -1,97 +1,77 @@
 # Sistema de Consulta de Listas Restrictivas (Compliance) 🛡️
 
-Solución híbrida escalable en **Azure** para la gestión y consulta de listas restrictivas (OFAC, ONU, SAT69B, UE, DEA, LPB, IRAQ) utilizando una **Arquitectura Medallón** sobre **Delta Lake**.
+Solución Multi-Cloud escalable para la gestión y consulta de listas restrictivas (OFAC, ONU, SAT69B, UE, DEA, LPB, IRAQ). Implementa una **Arquitectura Medallón** sobre **Delta Lake**, diseñada con el patrón **Hexagonal Light** para ser 100% agnóstica a la nube mediante **FastAPI Core**.
 
 ---
 
 ## 🚀 Características Principales
 
-- **Arquitectura Medallón**: Capas Bronze, Silver y Gold para máxima trazabilidad y calidad de datos.
-- **Delta Lake Local & Cloud**: Implementación eficiente con `delta-rs` para lectura directa de ADLS Gen2 sin necesidad de Spark.
-- **Fuzzy Matching Inteligente**: Búsqueda difusa avanzada utilizando algoritmos de `rapidfuzz` (Levenshtein y WRatio) con scores de confianza del 0 al 100.
-- **Normalización Corporativa**: Limpieza automática de nombres, eliminando sufijos (S.A., LLC, SAS), acentos y caracteres especiales.
-- **Infraestructura Serverless**: Azure Functions y Logic Apps para una orquestación diaria de bajo costo.
-- **Seguridad Empresarial**: Autenticación mediante **Managed Identities (RBAC)**, eliminando el uso de llaves estáticas.
+- **Arquitectura Hexagonal (Agnóstica a la Nube)**: La lógica de negocio está totalmente aislada en `src/`. Esto permite desplegar exactamente el mismo código base como AWS Lambdas/StepFunctions o como Azure Functions/LogicApps sin modificar el núcleo.
+- **Delta Lake Local & Cloud**: Implementación eficiente con `delta-rs` para lectura/escritura directa a ADLS Gen2 o Amazon S3 Bucket sin necesidad de clústeres Apache Spark.
+- **Fuzzy Matching Inteligente**: Búsqueda difusa de alta precisión utilizando el algoritmo WRatio de `rapidfuzz`.
+- **API Moderna (FastAPI)**: Documentación automática en Swagger, esquemas Pydantic y un rendimiento veloz.
 
 ---
 
-## 🏗️ Arquitectura
-
-El sistema está diseñado siguiendo el modelo C4 para máxima claridad técnica. Puedes consultar el detalle en [ARCHITECTURE.md](ARCHITECTURE.md).
+## 🏗️ Arquitectura (Multi-Cloud Ready)
 
 ```mermaid
 graph TD
-    A[Logic App] -->|Trigger| B[Azure Functions]
-    B -->|Extract| C[Fuentes Externas: OFAC, SAT, ONU]
-    B -->|Load| D[ADLS Gen2: Bronze/Silver]
-    B -->|Upsert| E[Delta Lake: Gold]
-    F[Oficial de Cumplimiento] -->|Query| G[FastAPI]
-    G -->|Read| E
+    Trigger[Orquestador ETL: AWS StepFunctions / Azure Logic App] -->|Map Array| Ingest[Ingest Func]
+    Ingest -->|Download| Bronce[Bronze S3/ADLS]
+    Ingest --> Transform[Transform Func]
+    Transform -->|Clean| Silver[Silver S3/ADLS]
+    Transform --> Load[Load Func]
+    Load -->|Delta Lake Upsert| Gold[Gold Layer S3/ADLS]
+    
+    API[Client / API Gateway] -->|REST /check| FastAPI[FastAPI Core]
+    FastAPI -->|Query| Gold
 ```
 
----
+## 📂 Estructura del Proyecto
 
-## 🛠️ Configuración Local (WSL)
+Todos los desarrollos deben realizarse en la capa conceptual correspondiente:
 
-### Requisitos Previos
-- Python 3.10 o superior (instalado en WSL).
-- Azure CLI configurado.
-- Acceso al Storage Account de Azure `listasdeltalake`.
-
-### Instalación
-1. Clonar el repositorio.
-2. Crear y activar el entorno virtual:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-3. Instalar dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
-4. Configurar el archivo `.env` basado en la documentación técnica.
+*   **`src/`:** Núcleo (Core). Contiene modelos Pydantic (`api/schemas.py`), endpoints (`api/v1/search.py`) y lógica pura ETL.
+*   **`cloud/`:** Adaptadores por nube, Infraestructura como Código (IaC) y scripts de despliegue.
+    *   `aws/`: Contiene envoltorios Mangum para API, el `template.yaml` para despliegues con AWS SAM, y scripts como `deploy_aws.ps1`.
+    *   `azure/`: Contiene la configuración Azure Functions V2, `logic_app.bicep` para orquestación, scripts de despliegue (`deploy_az.ps1`) y utilidades de almacenamiento.
+*   **`docker/`:** Contenedores de empaque. Para AWS (Lambda Image) o Azure.
+*   **`tests/`:** Suite de validación Pytest exhaustiva.
 
 ---
 
-## 🧪 Pruebas y Ejecución
+## 🛠️ Desarrollo Local y Pruebas
 
-### Pruebas Unitarias
+### 1. Levantar la API en Local (Modo Agnóstico)
+No necesitas levantar Docker para probar la API. Simplemente asegúrate de tener las variables de entorno configuradas (`.env` con tu bucket/storage account).
 ```bash
-pytest tests/unit
+python -m uvicorn src.main:app --reload
 ```
+Abre en tu navegador: `http://localhost:8000/docs`
 
-### Ingesta Manual (Prueba de Campo)
+### 2. Ejecutar Unit Tests
 ```bash
-PYTHONPATH=. python3 tests/test_full_ingest.py
-PYTHONPATH=. python3 tests/test_full_transform.py
-PYTHONPATH=. python3 tests/test_full_load.py
+python -m pytest tests/unit/ -v
 ```
 
-### Ejecutar API de Consulta
+---
+
+## ☁️ Nomenclatura Estricta (Naming Convention)
+
+Todos los recursos se crean mediante Infraestructura como Código (IaC) y siguen rígidamente esta convención:
+`reinesdev-[nombre_app]-[recurso]-[entorno]` (Ej: `reinesdev-compliance-api-prd`)
+
+---
+
+## 🚀 Despliegues
+
+### AWS (Vía SAM CLI)
+El despliegue primario se soporta con contenedores Serverless (AWS Lambda Images) orquestados mediante AWS Step Functions.
 ```bash
-PYTHONPATH=. python3 api/main.py
-```
-Acceso a Swagger: `http://localhost:8000/docs`
-
----
-
-## ☁️ Despliegue en Azure
-
-El proyecto incluye un script maestro de despliegue en PowerShell que aprovisiona la infraestructura y configura la seguridad:
-
-```powershell
-.\infrastructure\deploy.ps1
+sam build --template cloud/aws/template.yaml --use-container
+sam deploy --guided
 ```
 
----
-
-## 📂 Documentación Detallada
-
-- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)**: Manual técnico completo, diccionario de variables y guía de seguridad.
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Diagramas C4 detallados.
-- **[LINKEDIN_ARTICLE.md](LINKEDIN_ARTICLE.md)**: Contexto estratégico y casos de uso en el sector financiero.
-
----
-
-## 👥 Contribuciones
-Este proyecto utiliza estándares de codificación limpios y robustos. Para añadir una nueva lista restrictiva, crea un módulo en `azure_functions/ingest/` y añade la URL en las variables de entorno.
+### Azure
+En el directorio `cloud/azure/` y configurando el contenedor en `docker/Dockerfile.azure` se encuentra la base para acoplar GitHub Actions hacia Azure Container Apps o Functions V2.

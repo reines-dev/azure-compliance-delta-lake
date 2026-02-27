@@ -1,5 +1,5 @@
 import pytest
-from shared.normalization import normalize_name
+from src.etl.normalization import normalize_name
 
 def test_normalize_basic_case():
     assert normalize_name("Empresa S.A.") == "EMPRESA"

@@ -2,7 +2,7 @@ import pytest
 import json
 import pandas as pd
 from datetime import datetime
-from shared.normalization import normalize_name
+from src.etl.normalization import normalize_name
 
 def transform_logic(df, source):
     """Réplica de la lógica de transformación para pruebas."""

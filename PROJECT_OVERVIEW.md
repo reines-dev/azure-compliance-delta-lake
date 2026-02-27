@@ -1,88 +1,58 @@
-# Sistema de Detección de Entidades Restringidas (Compliance Architecture)
+# ComplianceGuard: Sistema Híbrido Multi-Cloud de Listas de Control
 
-Este proyecto implementa una solución híbrida escalable en **Azure** para la detección de entidades en listas restrictivas (OFAC, SAT69B, ONU, etc.) utilizando una arquitectura de datos moderna y servicios de bajo costo.
+Este proyecto implementa una solución **arquitectónicamente agnóstica** y escalable para la detección de entidades en listas restrictivas (OFAC, SAT69B, ONU, etc.) utilizando una **Arquitectura Hexagonal (Ports & Adapters)**. El sistema soporta despliegues nativos tanto en **AWS** (Lambda + S3) como en **Azure** (Functions + ADLS Gen2).
 
-## 1. Arquitectura del Sistema (Híbrida)
+## 1. Arquitectura del Sistema (Hexagonal Multi-Cloud)
 
-El sistema sigue el patrón de **Arquitectura Medallón** para garantizar la calidad y trazabilidad de los datos:
+El sistema separa rigurosamente la lógica de negocio (Core) de la infraestructura específica de la nube (Adapters):
 
-*   **Capa ETL (Ingesta y Transformación)**:
-    *   **Azure Logic Apps**: Orquestador que dispara el proceso diariamente (10:00 AM).
-    *   **Azure Functions (Python)**: Realiza la descarga (Ingesta), limpieza (Transformación) y carga final (Merge/Upsert) en el Data Lake.
-*   **Capa de Almacenamiento (Delta Lake)**:
-    *   **Azure Data Lake Storage (ADLS Gen2)**: Almacena los datos en tres etapas:
-        *   **Bronze**: Datos crudos en formato Parquet (ofac_raw, sat69b_raw).
-        *   **Silver**: Datos normalizados y con esquema unificado (id_unico, nombre_limpio, fuente).
-        *   **Gold**: Tabla **Delta Lake** optimizada para consultas de alta velocidad.
-*   **Capa de API (Consulta)**:
-    *   **FastAPI**: Servicio RESTful que lee directamente del Delta Lake (usando `delta-rs`) sin necesidad de clústeres de Spark activos (optimización de costos).
+*   **Core Lógico (`src/`)**: 
+    *   **FastAPI**: Motor de API neutro que puede correr en cualquier entorno ASGI.
+    *   **ETL Flow**: Pipeline agnóstico (Bronze -> Silver -> Gold) basado en `pandas` y `delta-rs`.
+*   **Adaptadores de Nube (`cloud/`)**:
+    *   **AWS (`cloud/aws/`)**: Implementación para AWS Lambda usando contenedores (ECR), API Gateway y S3. Orquestación vía Step Functions.
+    *   **Azure (`cloud/azure/`)**: Implementación para Azure Functions V2, Logic Apps y ADLS Gen2.
+*   **Almacenamiento (Delta Lake)**:
+    *   Uso de la tabla **Delta Lake** como fuente de verdad única y particionada, permitiendo consultas de milisegundos sin necesidad de clústeres de Spark activos.
 
-## 2. Componentes Técnicos
+## 2. Componentes Técnicos Avanzados
 
-### A. Normalización de Nombres (`shared/normalization.py`)
-Algoritmo centralizado que asegura que tanto las cargas como las consultas utilicen el mismo estándar:
-- Conversión a mayúsculas y eliminación de acentos (Unicodedata).
-- Limpieza de caracteres especiales y números no relevantes.
-- Eliminación de **Stop Words Corporativas** (S.A., SAS, LLC, INC, CORP, LTDA, etc.).
+### A. Algoritmo de Búsqueda "Precision-First"
+Implementado mediante la librería `rapidfuzz` utilizando el algoritmo **`token_set_ratio`**:
+- **Diferenciación Inteligente**: Prioriza registros donde todas las palabras de la consulta están presentes (Score 100), ideal para nombres con apellidos o segundos nombres adicionales.
+- **Normalización Agresiva**: Limpia caracteres especiales, acentos y elimina "stop words" corporativas (S.A., SAS, Inc).
 
-### B. Búsqueda Difusa (Fuzzy Matching)
-Implementada en la API mediante la librería `rapidfuzz` (algoritmo `WRatio`), permitiendo detectar:
-- Variaciones ortográficas.
-- Cambios en el orden de los nombres (ej: "SANTOS JUAN" vs "JUAN SANTOS").
-- Omisiones parciales.
+### B. Ingesta Multi-Fuente
+Centraliza y normaliza automáticamente múltiples listas globales:
+1.  **OFAC SDN**: Lista de nacionales especialmente designados (EE. UU.).
+2.  **ONU Consolidated**: Lista consolidada del Consejo de Seguridad.
+3.  **SAT 69-B (México)**: Listado de empresas facturadoras de operaciones inexistentes.
 
-### C. Fuentes de Datos Soportadas
-1.  **OFAC SDN List**: Lista de nacionales especialmente designados (EE. UU.).
-2.  **SAT 69-B (México)**: Lista de contribuyentes con operaciones inexistentes (facturadoras).
+## 3. Seguridad y Despliegue (Infrastructure as Code)
 
-## 3. Seguridad y Permisos (Managed Identity)
+- **Seguridad**: Basado en el principio de mínimo privilegio. Uso de roles IAM (AWS) e Identidades Administradas (Azure) para acceso al Data Lake sin llaves hardcodeadas.
+- **Despliegue AWS**: Automatizado con **AWS SAM** y Docker.
+- **Despliegue Azure**: Basado en scripts de PowerShell y plantillas Bicep.
 
-El sistema elimina el uso de secretos y llaves estáticas mediante el uso de **Identidades Administradas**:
-
-- **Azure Function**: Tiene el rol `Storage Blob Data Contributor` sobre el ADLS Gen2.
-- **API (Web App)**: Tiene el rol `Storage Blob Data Reader` sobre el ADLS Gen2.
-- **Logic App**: Tiene el rol `Website Contributor` para invocar la Azure Function de forma segura.
-
-## 4. Configuración y Variables de Entorno
-
-Toda la configuración se realiza mediante variables de entorno (App Settings):
-
-| Variable | Descripción | Valor por Defecto |
-|----------|-------------|-------------------|
-| `BASE_STORAGE_PATH` | Ruta raíz del contenedor en ADLS | `abfss://datalake@account.dfs.../` |
-| `DELTA_TABLE_PATH` | Ruta a la tabla Delta final (Gold) | `abfss://datalake@account.dfs.../tables/listas` |
-| `DEFAULT_SEARCH_THRESHOLD` | Score mínimo para hallazgos (0-100) | `85.0` |
-| `DEFAULT_SEARCH_LIMIT` | Máximo de resultados por consulta | `5` |
-| `OFAC_SDN_URL` | URL de descarga de la lista OFAC | `https://www.treasury.gov/...` |
-| `SAT69B_URL` | URL de descarga de la lista SAT | `http://omawww.sat.gob.mx/...` |
-
-## 5. Guía de Despliegue
-
-### Requisitos:
-- Azure CLI y Azure Functions Core Tools.
-- PowerShell 7+.
-
-### Pasos:
-1.  **Infraestructura**: Ejecutar `.\infrastructure\deploy.ps1`. Este script crea todos los recursos en la suscripción `91a951e6-4f42-4b04-b903-453ada37d059`.
-2.  **Código**:
-    - Subir Function: `func azure functionapp publish <Nombre_Func> --python`.
-    - Subir API: `az webapp up --name <Nombre_API> --resource-group <RG> --runtime PYTHON:3.10`.
-
-## 6. Estructura del Proyecto
+## 4. Estructura del Proyecto
 
 ```text
 listas_control/
-├── api/                # Aplicación FastAPI y servicios de consulta.
-├── azure_functions/    # Ingesta, Transformación y Carga (Medallón).
-├── shared/             # Lógica compartida (Normalización).
-├── tests/              # Pruebas Unitarias e Integración (Pytest).
-├── infrastructure/     # Bicep, Scripts de Despliegue y Seguridad.
-├── logic_app/          # Definición del Workflow de orquestación.
-└── requirements.txt    # Dependencias de Python.
+├── src/                # CORE: Lógica agnóstica de negocio y API.
+│   ├── api/            # Definiciones de endpoints y esquemas.
+│   ├── etl/            # Pipelines de Ingesta, Transformación y Carga.
+│   ├── services/       # Abstracciones (StorageService).
+│   └── core/           # Configuración global via Pydantic Settings.
+├── cloud/              # ADAPTADORES: Código específico de infraestructura.
+│   ├── aws/            # Lambda Handlers, SAM Template, Scripts AWS.
+│   └── azure/          # Function App, Bicep, Scripts Azure.
+├── docker/             # Dockerfiles optimizados para cada nube.
+├── tests/              # Pruebas integrales (Unitarias y API).
+└── requirements.txt    # Dependencias base del Core.
 ```
 
-## 7. Pruebas y Validación
+## 5. Pruebas y Validación
 
-- **Unitarias**: `pytest tests/unit` (Valida lógica de negocio sin conexión).
-- **Integración**: `pytest tests/integration` (Valida API -> Delta Lake).
-- **Manuales**: Ejecutar `python test_api.py` para simular búsquedas reales de entidades.
+- **Unitarias**: `pytest tests/unit` (Lógica de normalización y transformación).
+- **Integración**: `pytest tests/integration` (API Gateway / Functions -> Delta Lake).
+- **Manuales**: Consultas directas al endpoint `/check/` con API Keys habilitadas.
