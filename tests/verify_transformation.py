@@ -1,7 +1,7 @@
 import pandas as pd
 import json
 from datetime import datetime
-from shared.normalization import normalize_name
+from src.etl.normalization import normalize_name
 
 def simulate_transformation(source, raw_data):
     print(f"\n--- Probando Transformación para fuente: {source.upper()} ---")

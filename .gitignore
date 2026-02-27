@@ -15,15 +15,23 @@ __pycache__/
 .env
 local.settings.json
 azure_functions/local.settings.json
+.webappignore
+.dockerignore
 *.tfstate
 *.tfstate.backup
 
-# Datos temporales
+# Datos temporales e Infra
 *.parquet
 *.csv
 _last_run.txt
+results*.json
+.aws-sam/
+dist/
+*.log
+tests/test_scoring.py
 
 # VS Code & OS
 .vscode/
 .DS_Store
 Thumbs.db
+gemini.md

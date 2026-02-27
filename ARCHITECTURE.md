@@ -21,43 +21,68 @@ C4Context
     Rel(compliance_system, un, "Descarga listas", "HTTPS")
 ```
 
-## 2. Nivel 2: Diagrama de Contenedores
-Detalle de los servicios en Azure y cómo se comunican entre sí.
+## 2. Nivel 2: Diagrama de Contenedores (Arquitectura Hexagonal Multi-Cloud)
+Detalle de la arquitectura agnóstica que soporta despliegues nativos tanto en AWS como en Azure usando adaptadores.
 
 ```mermaid
 C4Container
-    title Diagrama de Contenedores - Arquitectura Híbrida Azure
+    title Diagrama de Contenedores - Arquitectura Hexagonal Multi-Cloud
     
-    Person(user, "Oficial de Cumplimiento", "Realiza consultas")
+    Person(user, "Oficial de Cumplimiento", "Realiza consultas vía API")
     
-    Boundary(azure_cloud, "Azure Cloud") {
-        Container(logic_app, "Azure Logic App", "Recurrence Trigger", "Orquestador que dispara el ETL diariamente.")
-        
-        Container(azure_func, "Azure Functions (Python)", "FastAPI/Functions", "Motor ETL: Ingesta, Transformación y Carga.")
-        
-        ContainerDb(adls, "Azure Data Lake Storage Gen2", "Parquet/Delta Lake", "Capa de persistencia Medallón (Bronze, Silver, Gold).")
-        
-        Container(api_fastapi, "FastAPI Service", "Python 3.10", "API de búsqueda con Fuzzy Matching (WRatio).")
+    Boundary(cloud_agnostic_core, "Núcleo Agnóstico (src/)") {
+        Container(fastapi_core, "FastAPI Application", "Python 3.12", "Lógica de negocio, Búsqueda Difusa (RapidFuzz), Endpoints REST Puros.")
+        Container(etl_pipeline, "ETL Pipeline", "Python 3.12", "Lógica de Ingesta, Transformación y Carga.")
+        Container(storage_service, "Storage Service", "Python (delta-rs)", "Abstracción de operaciones Data Lake.")
     }
 
-    System_Ext(ext_sources, "Fuentes Externas (OFAC, SAT, ONU)", "Proveedores de datos CSV/XML.")
+    Boundary(cloud_adapters, "Adaptadores Nube (cloud/)") {
+        Boundary(aws_cloud, "AWS") {
+            Container(aws_step_func, "Step Functions", "Orquestador ETL", "Dispara Lambda ETL diariamente.")
+            Container(aws_api_gw, "API Gateway", "Proxy", "Enruta tráfico HTTP a la Lambda API.")
+            Container(aws_lambda, "AWS Lambda", "Mangum Wrapper", "Ejecuta el núcleo FastAPI y ETL.")
+        }
+        Boundary(azure_cloud, "Azure") {
+            Container(az_logic_app, "Logic App", "Orquestador ETL", "Dispara Function ETL diariamente.")
+            Container(az_function, "Azure Function V2", "AsgiFunctionApp Wrapper", "Ejecuta el núcleo FastAPI y ETL.")
+        }
+    }
 
-    Rel(user, api_fastapi, "Consulta nombre", "JSON/HTTPS")
-    Rel(logic_app, azure_func, "Dispara pasos ETL", "HTTP/Managed Identity")
-    Rel(azure_func, ext_sources, "Descarga datos", "HTTPS")
-    Rel(azure_func, adls, "Escribe Bronze/Silver/Gold", "abfss (Delta Protocol)")
-    Rel(api_fastapi, adls, "Lee de la capa Gold", "deltalake (delta-rs)")
+    ContainerDb(data_lake, "Data Lake (S3 / ADLS Gen2)", "Parquet / Delta Lake", "Persistencia Medallón (Bronze, Silver, Gold).")
+    System_Ext(ext_sources, "Fuentes (OFAC, SAT, ONU)", "Proveedores de Listas Restrictivas.")
+
+    Rel(user, aws_api_gw, "Consulta (Si en AWS)", "HTTPS")
+    Rel(user, az_function, "Consulta (Si en Azure)", "HTTPS")
+    
+    Rel(aws_api_gw, aws_lambda, "Invoca")
+    Rel(aws_lambda, fastapi_core, "Envuelve aplicación")
+    
+    Rel(az_function, fastapi_core, "Envuelve aplicación")
+
+    Rel(aws_step_func, aws_lambda, "Dispara ETL")
+    Rel(az_logic_app, az_function, "Dispara ETL")
+
+    Rel(etl_pipeline, ext_sources, "Descarga listas", "HTTPS")
+    Rel(storage_service, data_lake, "Aplica MERGE y Consulta Delta", "delta-rs / SDK")
+    
+    Rel(fastapi_core, storage_service, "Inyecta dependencia de lectura")
+    Rel(etl_pipeline, storage_service, "Inyecta dependencia de escritura")
 ```
 
 ## 3. Flujo de Datos (Arquitectura Medallón)
 
-1.  **Ingesta (Bronze)**: La Azure Function descarga los archivos originales (CSV/XML) y los guarda en Parquet crudo.
-2.  **Transformación (Silver)**: Se aplica la lógica de `shared/normalization.py`. Los nombres se limpian (mayúsculas, sin acentos, sin stop words) y se genera un esquema unificado.
-3.  **Carga (Gold)**: Se realiza un `MERGE` atómico en una tabla Delta Lake particionada por fuente.
-4.  **Consulta**: La API recibe un nombre, lo normaliza y utiliza `rapidfuzz` sobre los datos de la capa Gold para devolver coincidencias con score de confianza.
+El almacenamiento subyacente depende de la nube desplegada (S3 para AWS o Blob Storage / ADLS Gen2 para Azure), pero el flujo permanece constante gracias a `delta-rs`.
 
-## 4. Seguridad
-- **Autenticación**: Managed Identity (System Assigned).
-- **Autorización**: RBAC (Storage Blob Data Contributor/Reader).
-- **Secretos**: No se utilizan llaves de acceso en el código ni en configuraciones.
-```
+1.  **Ingesta (Bronze)**: El servicio descarga los archivos originales (CSV/XML) mapeados inyectados por la infraestructura, y los guarda en parquet.
+2.  **Transformación (Silver)**: Los nombres se limpian (mayúsculas, sin acentos, sin stop words) utilizando `src.etl.normalization` y se genera un esquema unificado con `id_fuente`.
+3.  **Carga (Gold)**: Mediante el `StorageService` se aplica un `MERGE` atómico en una tabla Delta Lake única, particionada por fuente.
+4.  **Consulta**: `src/api/v1/search.py` (FastAPI) recibe las peticiones, cruza los datos con la capa Gold en memoria parcial usando `rapidfuzz` para coincidencias de alta confiabilidad.
+
+## 4. Nomenclatura, Seguridad y Despliegues
+
+- **Seguridad y Permisos**:  
+  Completamente delegados a la nube mediante Roles y Managed Identities asociadas a la política de mínimo privilegio (`Storage Blob Data Contributor/Reader` y roles equivalentes de S3 IAM).  
+- **Inyección de Dependencias**: 
+  Las URLs origen y nombres físicos de bucket/storage no están hardcodeadas, se inyectan como variables de entorno (usando `pydantic-settings` en `src/core/config.py`) desde el **IaC** (AWS SAM Template o local.settings.json en Azure).
+- **Convención Naming**: 
+  Cualquier despliegue debe llamarse: `reinesdev-[app]-[recurso]-[entorno]`. Ej: `reinesdev-compliance-api-prd`.
