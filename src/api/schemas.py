@@ -14,3 +14,11 @@ class SearchResponse(BaseModel):
     query: str
     match_found: bool
     results: list[MatchResult] = Field(default_factory=list)
+
+
+class ETLResponse(BaseModel):
+    status: str
+    source: str
+    records: int | None = None
+    path: str | None = None
+    message: str | None = None
