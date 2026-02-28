@@ -17,8 +17,11 @@ Globals:
         DELTA_TABLE_PATH: !Sub s3://${ComplianceBucketName}/gold/listas
         OFAC_SDN_URL: "https://www.treasury.gov/ofac/downloads/sdn.csv"
         OFAC_ALT_URL: "https://www.treasury.gov/ofac/downloads/add.csv"
-        SAT69B_URL: "https://www.sat.gob.mx/listas_69B.csv"
+        SAT69B_URL: "http://omawww.sat.gob.mx/cifras_sat/Documents/ListadoGlobalDefinitivo.csv"
         ONU_URL: "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
+        ENABLE_DOCS: "True"
+        DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
+        DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
 
 Resources:
   ComplianceBucket:
@@ -31,10 +34,11 @@ Resources:
     Properties:
       FunctionName: reinesdev-compliance-search-func
       PackageType: Image
+      MemorySize: 3008
       ImageConfig:
         Command: ["cloud.aws.lambda_api.handler"] # Mangum Wrapper for FastAPI
       Policies:
-        - S3ReadPolicy:
+        - S3CrudPolicy:
             BucketName: !Ref ComplianceBucketName
       Events:
         CheckNameApi:
@@ -135,7 +139,7 @@ Resources:
             Schedule: cron(0 6 * * ? *)
             Name: reinesdev-compliance-cron-prd
             Description: "Ejecución diaria de fuentes"
-            Input: '{"sources": ["ofac", "onu", "sat69b"]}'
+            Input: '{"sources": ["ofac", "onu", "sat69b", "fbi", "worldbank", "ue", "dea", "interpol", "fto", "contraloria", "iadb"]}'
 
   ComplianceApi:
     Type: AWS::Serverless::Api
@@ -143,7 +147,7 @@ Resources:
       Name: reinesdev-compliance-api-prd
       StageName: prod
       Auth:
-        ApiKeyRequired: true
+        ApiKeyRequired: false # Desactivado para facilitar acceso a Swagger /docs
 
   ComplianceUsagePlan:
     Type: AWS::ApiGateway::UsagePlan

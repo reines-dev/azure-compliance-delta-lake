@@ -1,88 +1,68 @@
-# Arquitectura del Sistema - C4 Model
+# Arquitectura del Sistema - ComplianceGuard
 
-Este documento describe la arquitectura del sistema de consulta de listas restrictivas utilizando el modelo C4.
+Este documento describe la arquitectura de alta disponibilidad y agnóstica a la nube para el sistema de consulta de listas restrictivas.
 
 ## 1. Nivel 1: Diagrama de Contexto
-El sistema interactúa con los oficiales de cumplimiento y fuentes de datos gubernamentales externas.
+El sistema interactúa con oficiales de cumplimiento y un ecosistema diverso de fuentes internacionales y regionales.
 
 ```mermaid
 C4Context
-    title Diagrama de Contexto - Sistema de Listas Restrictivas
+    title Diagrama de Contexto - ComplianceGuard
     Person(compliance_officer, "Oficial de Cumplimiento", "Usuario que realiza consultas de nombres.")
-    System(compliance_system, "Sistema de Listas de Control", "Gestiona la ingesta de listas y permite búsquedas difusas.")
+    System(compliance_system, "ComplianceGuard", "Gestiona la ingesta de 11+ listas y permite búsquedas difusas.")
     
-    System_Ext(ofac, "OFAC / SDN", "Fuente externa de sanciones de EE.UU.")
-    System_Ext(sat, "SAT 69-B", "Fuente externa de contribuyentes restringidos en México.")
-    System_Ext(un, "ONU", "Lista consolidada de sanciones de Naciones Unidas.")
+    System_Ext(opensanctions, "OpenSanctions", "Proxy de datos para DEA, Interpol, UE y WorldBank.")
+    System_Ext(ofac, "OFAC / FBI / ONU", "Fuentes directas internacionales.")
+    System_Ext(sat, "SAT 69-B México", "Fuente oficial del SAT.")
+    System_Ext(datos_gov, "Contraloría Colombia", "API V3 Socrata con Autenticación.")
 
     Rel(compliance_officer, compliance_system, "Consulta nombres / razones sociales", "HTTPS/REST")
-    Rel(compliance_system, ofac, "Descarga listas", "HTTPS")
-    Rel(compliance_system, sat, "Descarga listas", "HTTP")
-    Rel(compliance_system, un, "Descarga listas", "HTTPS")
+    Rel(compliance_system, opensanctions, "Descarga datasets consolidados", "HTTPS/JSONL")
+    Rel(compliance_system, datos_gov, "Consulta responsables fiscales", "HTTPS/API V3 Auth")
+    Rel(compliance_system, ofac, "Descarga listas oficiales", "HTTPS/CSV")
 ```
 
-## 2. Nivel 2: Diagrama de Contenedores (Arquitectura Hexagonal Multi-Cloud)
-Detalle de la arquitectura agnóstica que soporta despliegues nativos tanto en AWS como en Azure usando adaptadores.
+## 2. Nivel 2: Diagrama de Contenedores (Arquitectura Hexagonal)
+Detalle del diseño desacoplado que permite la portabilidad total entre AWS y Azure.
 
 ```mermaid
 C4Container
-    title Diagrama de Contenedores - Arquitectura Hexagonal Multi-Cloud
+    title Arquitectura Hexagonal Multi-Cloud
     
-    Person(user, "Oficial de Cumplimiento", "Realiza consultas vía API")
+    Person(user, "Usuario / App Externa", "Consultas vía API / Swagger")
     
-    Boundary(cloud_agnostic_core, "Núcleo Agnóstico (src/)") {
-        Container(fastapi_core, "FastAPI Application", "Python 3.12", "Lógica de negocio, Búsqueda Difusa (RapidFuzz), Endpoints REST Puros.")
-        Container(etl_pipeline, "ETL Pipeline", "Python 3.12", "Lógica de Ingesta, Transformación y Carga.")
-        Container(storage_service, "Storage Service", "Python (delta-rs)", "Abstracción de operaciones Data Lake.")
+    Boundary(core, "Núcleo Agnóstico (src/)") {
+        Container(fastapi_core, "API FastAPI", "Python 3.12", "Búsqueda Difusa (RapidFuzz), Swagger UI, Filtrado por Fuente.")
+        Container(etl_pipeline, "ETL Pipeline", "Python 3.12", "Orquestación Ingesta -> Transformación -> Carga Gold.")
+        Container(storage_service, "Storage Service", "Python (delta-rs)", "Abstracción Data Lake con Optimización de Memoria.")
     }
 
-    Boundary(cloud_adapters, "Adaptadores Nube (cloud/)") {
-        Boundary(aws_cloud, "AWS") {
-            Container(aws_step_func, "Step Functions", "Orquestador ETL", "Dispara Lambda ETL diariamente.")
-            Container(aws_api_gw, "API Gateway", "Proxy", "Enruta tráfico HTTP a la Lambda API.")
-            Container(aws_lambda, "AWS Lambda", "Mangum Wrapper", "Ejecuta el núcleo FastAPI y ETL.")
-        }
-        Boundary(azure_cloud, "Azure") {
-            Container(az_logic_app, "Logic App", "Orquestador ETL", "Dispara Function ETL diariamente.")
-            Container(az_function, "Azure Function V2", "AsgiFunctionApp Wrapper", "Ejecuta el núcleo FastAPI y ETL.")
-        }
+    Boundary(aws_adapter, "Adaptador AWS (Desplegado)") {
+        Container(aws_step_func, "Step Functions", "Orquestador", "Flujo Medallón diario automático.")
+        Container(aws_lambda, "Lambda (3008MB)", "Compute", "Ejecuta el Core optimizado para +58k registros.")
+        Container(aws_s3, "Amazon S3", "Data Lake", "Tablas Delta particionadas por FUENTE.")
     }
 
-    ContainerDb(data_lake, "Data Lake (S3 / ADLS Gen2)", "Parquet / Delta Lake", "Persistencia Medallón (Bronze, Silver, Gold).")
-    System_Ext(ext_sources, "Fuentes (OFAC, SAT, ONU)", "Proveedores de Listas Restrictivas.")
-
-    Rel(user, aws_api_gw, "Consulta (Si en AWS)", "HTTPS")
-    Rel(user, az_function, "Consulta (Si en Azure)", "HTTPS")
-    
-    Rel(aws_api_gw, aws_lambda, "Invoca")
-    Rel(aws_lambda, fastapi_core, "Envuelve aplicación")
-    
-    Rel(az_function, fastapi_core, "Envuelve aplicación")
-
-    Rel(aws_step_func, aws_lambda, "Dispara ETL")
-    Rel(az_logic_app, az_function, "Dispara ETL")
-
-    Rel(etl_pipeline, ext_sources, "Descarga listas", "HTTPS")
-    Rel(storage_service, data_lake, "Aplica MERGE y Consulta Delta", "delta-rs / SDK")
-    
-    Rel(fastapi_core, storage_service, "Inyecta dependencia de lectura")
-    Rel(etl_pipeline, storage_service, "Inyecta dependencia de escritura")
+    Rel(user, fastapi_core, "GET /check/?name=X&source=Y", "HTTPS")
+    Rel(fastapi_core, storage_service, "Consulta optimizada (5 columnas)")
+    Rel(etl_pipeline, storage_service, "Escritura ACID con Predicados")
+    Rel(storage_service, aws_s3, "delta-rs / S3 SDK")
 ```
 
-## 3. Flujo de Datos (Arquitectura Medallón)
+## 3. Flujo de Datos y Optimización
 
-El almacenamiento subyacente depende de la nube desplegada (S3 para AWS o Blob Storage / ADLS Gen2 para Azure), pero el flujo permanece constante gracias a `delta-rs`.
+### Estrategia de Ingesta Híbrida
+Debido a bloqueos de IP en nubes públicas, el sistema utiliza un enfoque triple:
+1.  **Directo:** OFAC, ONU, FBI, FTO y SAT descargados desde servidores oficiales.
+2.  **Proxy (OpenSanctions):** DEA, Interpol, UE y WorldBank obtenidos vía datasets estructurados JSONL.
+3.  **Autenticado:** Contraloría de Colombia vía API V3 con credenciales de Socrata.
 
-1.  **Ingesta (Bronze)**: El servicio descarga los archivos originales (CSV/XML) mapeados inyectados por la infraestructura, y los guarda en parquet.
-2.  **Transformación (Silver)**: Los nombres se limpian (mayúsculas, sin acentos, sin stop words) utilizando `src.etl.normalization` y se genera un esquema unificado con `id_fuente`.
-3.  **Carga (Gold)**: Mediante el `StorageService` se aplica un `MERGE` atómico en una tabla Delta Lake única, particionada por fuente.
-4.  **Consulta**: `src/api/v1/search.py` (FastAPI) recibe las peticiones, cruza los datos con la capa Gold en memoria parcial usando `rapidfuzz` para coincidencias de alta confiabilidad.
+### Rendimiento del Motor de Búsqueda
+*   **Volumen:** ~58,500 registros unificados.
+*   **Memoria:** Uso de 3GB de RAM en Lambda para mantener el DataFrame de búsqueda en caliente.
+*   **Columnas Ligeras:** Solo se cargan 5 campos críticos (`nombre_limpio`, `nombre_original`, `fuente`, `tipo_lista`, `metadata`) para maximizar la velocidad y estabilidad.
 
-## 4. Nomenclatura, Seguridad y Despliegues
-
-- **Seguridad y Permisos**:  
-  Completamente delegados a la nube mediante Roles y Managed Identities asociadas a la política de mínimo privilegio (`Storage Blob Data Contributor/Reader` y roles equivalentes de S3 IAM).  
-- **Inyección de Dependencias**: 
-  Las URLs origen y nombres físicos de bucket/storage no están hardcodeadas, se inyectan como variables de entorno (usando `pydantic-settings` en `src/core/config.py`) desde el **IaC** (AWS SAM Template o local.settings.json en Azure).
-- **Convención Naming**: 
-  Cualquier despliegue debe llamarse: `reinesdev-[app]-[recurso]-[entorno]`. Ej: `reinesdev-compliance-api-prd`.
+## 4. Seguridad y Gobernanza
+*   **Identidad:** Acceso a S3 vía IAM Roles (Amazon) y Managed Identity (Azure).
+*   **Secretos:** Credenciales de Datos Abiertos inyectadas vía variables de entorno en el despliegue de IaC.
+*   **Documentación:** OpenAPI 3.1 / Swagger UI activo para integración simplificada.

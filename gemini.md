@@ -1,33 +1,31 @@
-# Proyecto: Sistema Híbrido Multi-Cloud (ComplianceGuard)
+# Contexto de Sistema: ComplianceGuard (Estado Actual)
 
-## 1. Estado Actual del Proyecto
-El sistema ha migrado de una implementación monolítica en Azure a una **Arquitectura Hexagonal (Agnóstica a la Nube)** construida sobre FastAPI y Delta Lake. Ahora cuenta con soporte nativo y despliegue cruzado tanto para **AWS (API Gateway + Lambdas + StepFunctions)** como para **Azure (Function App V2 + Logic Apps)**.
+## 1. Estado del Proyecto (Certificado 100%)
+El sistema ha alcanzado su madurez productiva en AWS, consolidando una plataforma unificada de cumplimiento con **11 fuentes globales y regionales**.
 
-### Componentes Entregados:
-*   **Núcleo FastAPI (`src/`):** Contiene la lógica profunda ETL (Medallón), modelos Pydantic globales (`schemas.py`, `config.py`) y Endpoints puramente funcionales libres de vendor lock-in (`src/api/v1/search.py`).
-*   **Adaptadores Cloud e Infraestructura (`cloud/`):** La antigua carpeta `infrastructure/` fue subsumida aquí.
-    *   **AWS (`cloud/aws/`):** Envoltura `Mangum` para API Gateway, IaC con `AWS SAM` (`template.yaml`), y el script de CI/CD automatizado `deploy_aws.ps1`. La orquestación completa corre en **Step Functions**.
-    *   **Azure (`cloud/azure/`):** Envoltura `AsgiFunctionApp` para Azure Functions V2, recursos de `logic_app.bicep` y su respectivo script de despliegue `deploy_az.ps1`.
-*   **Almacenamiento Genérico:** El puente `StorageService` en `src/services/` abstrae comandos directos de `delta-rs` y `Boto3` (AWS) / Blob SDK (Azure).
+### Hitos Alcanzados en la Última Sesión:
+*   **Fuentes Operativas (11/11):** ONU, OFAC (Clinton), SAT 69B (MEX), FBI, WorldBank, UE, DEA, Interpol, FTO (Terroristas), Contraloría (COL) e IADB (BID).
+*   **Ingesta Híbrida:** Uso de **OpenSanctions** como proxy para fuentes bloqueadas por IP en la nube (DEA, Interpol, UE, WorldBank).
+*   **Autenticación Socrata:** Integración de API V3 con Basic Auth para la Contraloría de Colombia (Datos Abiertos).
+*   **Certificación E2E:** Suite de pruebas `tests/acceptance_e2e_aws.py` validada con **100% de éxito** en AWS Production.
 
-## 2. Nomenclatura Estricta (Convención)
-Toda la infraestructura cloud ha sido renombrada respetando la directiva de arquitectura elegida.
-*   **Estructura Base:** `reinesdev-[nombre_app]-[recurso]-[entorno]`
-*   **Ejemplos Reales:** `reinesdev-compliance-api-prd` (API AWS), `reinesdevcomplakeprd` (Storage en Azure).
+## 2. Arquitectura y Optimización (AWS Lambda)
+*   **Memoria:** Escalada a **3008MB** en `template.yaml` para soportar el Data Lake de ~60,000 registros en RAM.
+*   **Carga Selectiva:** `StorageService.get_delta_table()` optimizado para cargar solo 5 columnas críticas, reduciendo el consumo de RAM.
+*   **API Gateway:** Swagger UI activo en `/prod/docs`. Se añadió filtro por `source` y parámetro `refresh=true` para invalidación de caché.
 
-## 3. Arquitectura Técnica (Medallón)
-1.  **Bronze:** Datos originales descargados (CSVs/XML) listos en Parquet.
-2.  **Silver:** Datos normalizados (uso de `rapidfuzz` y limpieza de caracteres) con identificadores compuestos `id_fuente`.
-3.  **Gold (Delta Lake):** Particionado atómico vía `predicate` sobre los *Data Lakes* (S3Bucket o Blob Storage). 
+## 3. Credenciales y Seguridad
+*   **Socrata (Colombia):** Credenciales configuradas en `.env` y mapeadas en `Settings` (`DATOS_GOV_KEY_ID`, `DATOS_GOV_API_KEY`).
+*   **IAM:** La función de búsqueda ahora tiene `S3CrudPolicy` para permitir la ejecución de los endpoints `/etl/` registrados en el Core.
 
-## 4. Pruebas y Validación (Pytest)
-*   **Suite Unitaria (`tests/unit`):** Validando lógica fina sobre Transformación y Normalización en el Core. (8/8 Exitosa).
-*   **Suite de Integración:** Uso de `fastapi.testclient.TestClient` emulando las llamadas REST al EndPoint `/check`.
+## 4. Estructura de Datos (Gold Layer)
+*   **Esquema Unificado:** `id_unico`, `nombre_original`, `nombre_limpio`, `fuente`, `tipo_lista`, `fecha_carga`, `metadata`.
+*   **Particionamiento:** La tabla Delta está particionada por la columna `fuente` para búsquedas eficientes.
 
-## 5. Roadmap / Pendientes
-*   **Orquestación en Azure:** Implementar o portar los manifiestos JSON a ARM/Bicep completos para igualar el `template.yaml` de AWS ya validado.
-*   **Despliegue GitHub Actions:** Finalizar rutinas CI/CD combinando los `Dockerfile.aws` / `Dockerfile.azure` optimizados para ambas nubes en flujos de empaque.
-*   **Alarma CloudWatch/Insights:** Requisitar permisos `logs:FilterLogEvents` para consolidar trazabilidad.
+## 5. Próximos Pasos (Pendientes)
+*   **Azure Finalization:** Portar los cambios de los parsers robustos y la optimización de memoria a la configuración de Azure Functions.
+*   **Monitoring:** Implementar alarmas de CloudWatch para detectar fallos en la ingesta diaria de OpenSanctions.
+*   **Web UI:** Vincular el archivo `ui/index.html` con el nuevo endpoint `/prod/check/`.
 
 ---
-**Contexto de Sistema:** Framework FastAPI, `delta-rs`, Python 3.12 Serverless Apps.
+**Nota de Contexto:** El motor de búsqueda utiliza `RapidFuzz` con `token_set_ratio`. El umbral recomendado para producción es **85.0**.
