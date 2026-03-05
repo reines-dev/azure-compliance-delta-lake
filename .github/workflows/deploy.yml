@@ -14,8 +14,40 @@ env:
   LAKE_BUCKET: reinesdev-compliance-lake-prd
 
 jobs:
+  unit-tests:
+    name: 🧪 Unit Tests & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r api/requirements.txt
+          pip install -r lambdas/requirements-aws.txt
+          pip install -r requirements-test.txt
+          # Instalar el paquete actual en modo editable para que los tests vean src/
+          pip install -e . || true
+
+      - name: 🏃 Run tests with coverage
+        run: |
+          # Ejecutar tests y fallar si la cobertura es inferior al 80%
+          pytest tests/unit/ \
+            --cov=src \
+            --cov=lambdas \
+            --cov=api \
+            --cov-report=term-missing \
+            --cov-fail-under=80
+
   enforce-policy:
     name: 🛡️ Enforce PR Policy
+    needs: [unit-tests]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
@@ -43,10 +75,12 @@ jobs:
 
   deploy:
     name: 🚀 Atomic Deployment
-    needs: [enforce-policy]
+    needs: [unit-tests, enforce-policy]
+    # Se ejecuta si los tests pasan Y (es feature branch o (es main y PR policy se cumple))
     if: |
       always() && 
-      (needs.enforce-policy.result == 'success' || github.ref != 'refs/heads/main')
+      needs.unit-tests.result == 'success' &&
+      (needs.enforce-policy.result == 'success' || needs.enforce-policy.result == 'skipped' || github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
@@ -74,7 +108,6 @@ jobs:
 
       - name: 🏗️ Prepare Lambda Package
         run: |
-          # Asegurar que las Lambdas tengan acceso a la lógica compartida
           cp -r src/ lambdas/src/
 
       - name: 🐳 Build, Push & Package
@@ -82,7 +115,6 @@ jobs:
           ECR_REPOSITORY: reinesdev-compliance-api-repo
           IMAGE_TAG: latest
         run: |
-          # Capturar el registro del output del paso anterior
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           
           if [ -z "$ECR_REGISTRY" ]; then
@@ -93,17 +125,14 @@ jobs:
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "🚀 Building image: $IMAGE_URI"
 
-          # 1. Build & Push Docker Image (Capa 4)
           docker build -t $IMAGE_URI -f api/Dockerfile.aws .
           docker push $IMAGE_URI
           
-          # 2. CloudFormation Package (Capa 1, 2, 3)
           aws cloudformation package \
             --template-file infra/root-template.yaml \
             --s3-bucket ${{ env.SAM_BUCKET }} \
             --output-template-file packaged-root.yaml
 
-          # 3. Deploy Root Stack
           aws cloudformation deploy \
             --template-file packaged-root.yaml \
             --stack-name ${{ env.BASE_STACK }}-root \
