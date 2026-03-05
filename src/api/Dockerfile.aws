@@ -1,34 +1,32 @@
 # ETAPA 1: Constructor (Builder)
 FROM public.ecr.aws/lambda/python:3.12 AS builder
 
-# Instalar herramientas de compilación necesarias para dependencias nativas
+# Instalar herramientas de compilación
 RUN dnf install -y gcc-c++ make
 
-# Copiar archivos de dependencias
-COPY api/requirements.txt ./requirements_api.txt
+# Copiar archivos de dependencias desde sus nuevas rutas
+COPY src/api/requirements.txt ./requirements_api.txt
 COPY lambdas/requirements-aws.txt ./requirements_aws.txt
 
-# Instalar dependencias directamente en LAMBDA_TASK_ROOT
-# Usamos --no-cache-dir para reducir el peso
+# Instalar dependencias en /var/task
 RUN pip install --no-cache-dir --upgrade pip --root-user-action=ignore && \
     pip install --no-cache-dir -r requirements_api.txt -r requirements_aws.txt --target "${LAMBDA_TASK_ROOT}"
 
-# ETAPA 2: Runtime (Imagen Final)
+# ETAPA 2: Runtime
 FROM public.ecr.aws/lambda/python:3.12
 
-# Optimizaciones de Python para entorno Serverless
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH="${LAMBDA_TASK_ROOT}"
 
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Copiar las dependencias instaladas desde el builder
+# Copiar paquetes instalados
 COPY --from=builder ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
 
 # Copiar el código fuente
 COPY src/ ${LAMBDA_TASK_ROOT}/src/
-COPY api/ ${LAMBDA_TASK_ROOT}/api/
+COPY lambdas/ ${LAMBDA_TASK_ROOT}/lambdas/
 
-# El handler está en api/lambda_api.py
-CMD ["api.lambda_api.handler"]
+# El handler ahora está en src.api.lambda_api.handler
+CMD ["src.api.lambda_api.handler"]

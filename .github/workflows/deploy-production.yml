@@ -55,14 +55,17 @@ jobs:
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "🚀 Building image: $IMAGE_URI"
 
-          docker build -t $IMAGE_URI -f api/Dockerfile.aws .
+          # El Dockerfile ahora está en src/api/
+          docker build -t $IMAGE_URI -f src/api/Dockerfile.aws .
           docker push $IMAGE_URI
           
+          # 2. CloudFormation Package
           aws cloudformation package \
             --template-file infra/root-template.yaml \
             --s3-bucket ${{ env.SAM_BUCKET }} \
             --output-template-file packaged-root.yaml
 
+          # 3. Deploy Root Stack
           aws cloudformation deploy \
             --template-file packaged-root.yaml \
             --stack-name ${{ env.BASE_STACK }}-root \

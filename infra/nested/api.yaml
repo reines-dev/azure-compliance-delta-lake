@@ -14,19 +14,16 @@ Resources:
     Properties:
       StageName: prod
       Auth:
-        ApiKeyRequired: true # Requerir API Key para que el Usage Plan tenga sentido
+        ApiKeyRequired: true
 
   ComplianceSearchFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: reinesdev-compliance-search-func
       PackageType: Image
       ImageUri: !Ref ImageUri
       MemorySize: 1024
       Timeout: 30
-      Environment:
-        Variables:
-          COMPLIANCE_LAKE_BUCKET: !Ref BucketName
-          GOLD_ZONE_PATH: !Sub s3://${BucketName}/gold/listas
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref BucketName
@@ -38,7 +35,6 @@ Resources:
             Method: any
             RestApiId: !Ref ComplianceApi
 
-  # Plan de Uso para controlar el consumo y habilitar API Keys
   ComplianceUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
     DependsOn: ComplianceApi

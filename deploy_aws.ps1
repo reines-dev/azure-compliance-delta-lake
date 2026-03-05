@@ -49,7 +49,8 @@ try {
         aws ecr create-repository --repository-name $REPO_NAME --region $REGION
     }
 
-    docker build -t $REPO_NAME -f api/Dockerfile.aws .
+    # El Dockerfile ahora está en src/api/
+    docker build -t $REPO_NAME -f src/api/Dockerfile.aws .
     docker tag "${REPO_NAME}:latest" $ECR_URI
     docker push $ECR_URI
     Assert-LastCommand 'Falló el push de la imagen Docker.'
