@@ -54,6 +54,8 @@ jobs:
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
@@ -72,13 +74,8 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.REGION }}
 
-      - name: 📤 Sync AWS Glue PySpark Scripts to S3
-        run: |
-          aws s3 sync src/glue_jobs/ s3://${{ env.LAKE_BUCKET_NAME }}/system/glue_jobs/ --exclude "*" --include "*.py"
-
       - name: 🏗️ Build Serverless Application
         run: |
-          # SAM build detectará Docker automáticamente en github runners
           sam build --template template.yaml
 
       - name: 🚀 Deploy Serverless Application
@@ -95,4 +92,5 @@ jobs:
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --no-confirm-changeset \
             --resolve-image-repos \
+            --resolve-s3 \
             --debug
