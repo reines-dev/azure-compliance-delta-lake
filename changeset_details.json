@@ -1,0 +1,333 @@
+{
+    "Changes": [
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceApiDeploymentcc663f369d",
+                "ResourceType": "AWS::ApiGateway::Deployment",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceApiprodStage",
+                "ResourceType": "AWS::ApiGateway::Stage",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceApi",
+                "ResourceType": "AWS::ApiGateway::RestApi",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceBucket",
+                "ResourceType": "AWS::S3::Bucket",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceCrawler",
+                "ResourceType": "AWS::Glue::Crawler",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceDatabase",
+                "ResourceType": "AWS::Glue::Database",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceSearchFunctionCheckNameApiPermissionprod",
+                "ResourceType": "AWS::Lambda::Permission",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceSearchFunctionRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceSearchFunction",
+                "ResourceType": "AWS::Lambda::Function",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceStateMachineDailyRunRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceStateMachineDailyRun",
+                "ResourceType": "AWS::Events::Rule",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceStateMachineRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceStateMachine",
+                "ResourceType": "AWS::StepFunctions::StateMachine",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ComplianceUsagePlan",
+                "ResourceType": "AWS::ApiGateway::UsagePlan",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractOfacFunctionRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractOfacFunction",
+                "ResourceType": "AWS::Lambda::Function",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractOnuFunctionRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractOnuFunction",
+                "ResourceType": "AWS::Lambda::Function",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractOpenSanctionsFunctionRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractOpenSanctionsFunction",
+                "ResourceType": "AWS::Lambda::Function",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractPepFunctionRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractPepFunction",
+                "ResourceType": "AWS::Lambda::Function",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractSatFunctionRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "ExtractSatFunction",
+                "ResourceType": "AWS::Lambda::Function",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "GlueExecutionRole",
+                "ResourceType": "AWS::IAM::Role",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "TransformOfacGlueJob",
+                "ResourceType": "AWS::Glue::Job",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "TransformOnuGlueJob",
+                "ResourceType": "AWS::Glue::Job",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "TransformOpenSanctionsGlueJob",
+                "ResourceType": "AWS::Glue::Job",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "TransformPepGlueJob",
+                "ResourceType": "AWS::Glue::Job",
+                "Scope": [],
+                "Details": []
+            }
+        },
+        {
+            "Type": "Resource",
+            "ResourceChange": {
+                "Action": "Add",
+                "LogicalResourceId": "TransformSatGlueJob",
+                "ResourceType": "AWS::Glue::Job",
+                "Scope": [],
+                "Details": []
+            }
+        }
+    ],
+    "ChangeSetName": "samcli-deploy1772679539",
+    "ChangeSetId": "arn:aws:cloudformation:us-east-1:840343583843:changeSet/samcli-deploy1772679539/e5c2fdf7-64dd-42a6-860e-335b9dbe286f",
+    "StackId": "arn:aws:cloudformation:us-east-1:840343583843:stack/reinesdev-compliance-prd/e336ff20-183d-11f1-b1b1-0affea00cfd5",
+    "StackName": "reinesdev-compliance-prd",
+    "Description": "Created by SAM CLI at 2026-03-05T02:58:59.440915+00:00 UTC",
+    "Parameters": [
+        {
+            "ParameterKey": "ComplianceBucketName",
+            "ParameterValue": "reinesdev-compliance-lake-prd"
+        }
+    ],
+    "CreationTime": "2026-03-05T02:59:00.133000+00:00",
+    "ExecutionStatus": "UNAVAILABLE",
+    "Status": "FAILED",
+    "StatusReason": "The following hook(s)/validation failed: [AWS::EarlyValidation::ResourceExistenceCheck]. To troubleshoot Early Validation errors, use the DescribeEvents API for detailed failure information.",
+    "NotificationARNs": [],
+    "RollbackConfiguration": {},
+    "Capabilities": [
+        "CAPABILITY_IAM",
+        "CAPABILITY_AUTO_EXPAND"
+    ],
+    "Tags": null,
+    "ParentChangeSetId": null,
+    "IncludeNestedStacks": false,
+    "RootChangeSetId": null,
+    "OnStackFailure": null,
+    "ImportExistingResources": null,
+    "StackDriftStatus": null,
+    "DeploymentMode": null
+}

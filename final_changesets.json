@@ -1,0 +1,16 @@
+{
+    "Summaries": [
+        {
+            "StackId": "arn:aws:cloudformation:us-east-1:840343583843:stack/reinesdev-compliance-prd/55ef0800-1843-11f1-816f-12653bc4a323",
+            "StackName": "reinesdev-compliance-prd",
+            "ChangeSetId": "arn:aws:cloudformation:us-east-1:840343583843:changeSet/samcli-deploy1772681290/fbb6abd4-7f58-4179-9d7e-101e04da7f42",
+            "ChangeSetName": "samcli-deploy1772681290",
+            "ExecutionStatus": "UNAVAILABLE",
+            "Status": "FAILED",
+            "StatusReason": "The following hook(s)/validation failed: [AWS::EarlyValidation::ResourceExistenceCheck]. To troubleshoot Early Validation errors, use the DescribeEvents API for detailed failure information.",
+            "CreationTime": "2026-03-05T03:28:11.007000+00:00",
+            "Description": "Created by SAM CLI at 2026-03-05T03:28:10.669927+00:00 UTC",
+            "IncludeNestedStacks": false
+        }
+    ]
+}
