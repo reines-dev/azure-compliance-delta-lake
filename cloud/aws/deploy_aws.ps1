@@ -34,9 +34,9 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-# 2. Build con SAM
-Write-Host "[2/3] Construyendo paquete de despliegue SAM..."
-sam build --template template.yaml
+# 2. Build con SAM (Usando contenedores para evitar conflictos de versión de Python)
+Write-Host "[2/3] Construyendo paquete de despliegue SAM (usando contenedores)..."
+sam build --template template.yaml --use-container
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Falló la construcción SAM." -ForegroundColor Red

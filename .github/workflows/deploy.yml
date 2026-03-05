@@ -76,7 +76,7 @@ jobs:
 
       - name: 🏗️ Build Serverless Application
         run: |
-          sam build --template template.yaml
+          sam build --template template.yaml --use-container
 
       - name: 🚀 Deploy Serverless Application
         env:
