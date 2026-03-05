@@ -189,7 +189,6 @@ Resources:
   ComplianceDatabase:
     Type: AWS::Glue::Database
     Properties:
-      CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: compliance_db
         Description: "Data Catalog for Compliance Data Lake"
