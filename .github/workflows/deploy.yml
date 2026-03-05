@@ -47,6 +47,9 @@ jobs:
           sam build --template cloud/aws/template.yaml --use-container
 
       - name: 🚀 Deploy Serverless Application
+        env:
+          DOCKER_CLIENT_TIMEOUT: "300"
+          COMPOSE_HTTP_TIMEOUT: "300"
         run: |
           sam deploy \
             --stack-name ${{ env.STACK_NAME }} \
