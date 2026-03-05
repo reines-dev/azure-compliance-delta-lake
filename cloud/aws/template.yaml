@@ -11,7 +11,6 @@ Globals:
   Function:
     Timeout: 120
     MemorySize: 256
-    Runtime: python3.12
     Environment:
       Variables:
         COMPLIANCE_LAKE_BUCKET: !Ref ComplianceBucketName
@@ -85,6 +84,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: reinesdev-extract-ofac
+      Runtime: python3.12
       Handler: cloud.aws.lambda_extract.ofac_handler.ofac_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
@@ -93,6 +93,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: reinesdev-extract-onu
+      Runtime: python3.12
       Handler: cloud.aws.lambda_extract.onu_handler.onu_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
@@ -101,6 +102,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: reinesdev-extract-sat
+      Runtime: python3.12
       Handler: cloud.aws.lambda_extract.sat_handler.sat69b_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
@@ -109,6 +111,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: reinesdev-extract-pep
+      Runtime: python3.12
       Handler: cloud.aws.lambda_extract.pep_handler.socrata_pep_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
@@ -117,6 +120,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: reinesdev-extract-os
+      Runtime: python3.12
       Handler: cloud.aws.lambda_extract.opensanctions_handler.opensanctions_proxy_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
@@ -267,9 +271,11 @@ Resources:
                 States:
                   ExtractFBI:
                     Type: Task
-                    Resource: !GetAtt ExtractOpenSanctionsFunction.Arn
+                    Resource: arn:aws:states:::lambda:invoke
                     Parameters:
-                      "source_id": "fbi_wanted"
+                      FunctionName: !GetAtt ExtractOpenSanctionsFunction.Arn
+                      Payload:
+                        "source_id": "fbi_wanted"
                     Next: TransformFBI
                   TransformFBI:
                     Type: Task
@@ -283,9 +289,11 @@ Resources:
                 States:
                   ExtractUE:
                     Type: Task
-                    Resource: !GetAtt ExtractOpenSanctionsFunction.Arn
+                    Resource: arn:aws:states:::lambda:invoke
                     Parameters:
-                      "source_id": "eu_fsf"
+                      FunctionName: !GetAtt ExtractOpenSanctionsFunction.Arn
+                      Payload:
+                        "source_id": "eu_fsf"
                     Next: TransformUE
                   TransformUE:
                     Type: Task
