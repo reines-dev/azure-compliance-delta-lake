@@ -72,6 +72,11 @@ jobs:
         run: |
           aws s3 sync glue/jobs/ s3://${{ env.LAKE_BUCKET }}/system/glue_jobs/ --exclude "*" --include "*.py"
 
+      - name: 🏗️ Prepare Lambda Package
+        run: |
+          # Asegurar que las Lambdas tengan acceso a la lógica compartida
+          cp -r src/ lambdas/src/
+
       - name: 🐳 Build, Push & Package
         env:
           ECR_REPOSITORY: reinesdev-compliance-api-repo
@@ -81,7 +86,7 @@ jobs:
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           
           if [ -z "$ECR_REGISTRY" ]; then
-            echo "❌ ERROR: No se pudo obtener el ECR Registry del paso de login."
+            echo "❌ ERROR: No se pudo obtener the ECR Registry."
             exit 1
           fi
 

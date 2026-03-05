@@ -31,15 +31,19 @@ try {
     aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
     Assert-LastCommand 'Falló el login en ECR.'
 
-    # 1. Sincronizar scripts Glue (Capa ETL)
+    # 1. Sincronizar scripts Glue
     Write-Host '`n[1/4] Sincronizando scripts Glue...' -ForegroundColor Gray
     aws s3 sync glue/jobs/ s3://reinesdev-compliance-lake-prd/system/glue_jobs/ --exclude '*' --include '*.py'
+
+    # --- PREPARACIÓN LAMBDAS: Copiar src para disponibilidad de importación ---
+    Write-Host 'Preparando paquete de Lambdas...' -ForegroundColor Gray
+    if (Test-Path "lambdas/src") { Remove-Item "lambdas/src" -Recurse -Force }
+    Copy-Item "src" "lambdas/src" -Recurse
 
     # 2. Construir y subir imagen Docker (Capa API)
     Write-Host '`n[2/4] Preparando imagen Docker de la API...' -ForegroundColor Gray
     $ECR_URI = "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPO_NAME}:latest"
     
-    # Crear repo si no existe
     aws ecr describe-repositories --repository-names $REPO_NAME --region $REGION 2>$null
     if ($LASTEXITCODE -ne 0) {
         aws ecr create-repository --repository-name $REPO_NAME --region $REGION
@@ -50,18 +54,18 @@ try {
     docker push $ECR_URI
     Assert-LastCommand 'Falló el push de la imagen Docker.'
 
-    # 3. CloudFormation Package (Sube templates anidados y código Lambda a S3)
+    # 3. CloudFormation Package
     Write-Host '`n[3/4] Empaquetando arquitectura modular...' -ForegroundColor Gray
     aws cloudformation package `
         --template-file infra/root-template.yaml `
         --s3-bucket $S3_BUCKET `
-        --output-template-file infra/packaged-root.yaml
+        --output-template-file packaged-root.yaml
     Assert-LastCommand 'Falló el empaquetado de CloudFormation.'
 
-    # 4. CloudFormation Deploy (Despliegue Atómico)
+    # 4. CloudFormation Deploy
     Write-Host '`n[4/4] Desplegando Root Stack en AWS...' -ForegroundColor Cyan
     aws cloudformation deploy `
-        --template-file infra/packaged-root.yaml `
+        --template-file packaged-root.yaml `
         --stack-name $STACK_NAME `
         --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND `
         --parameter-overrides "ImageUri=$ECR_URI" `
@@ -69,11 +73,11 @@ try {
     Assert-LastCommand 'Falló el despliegue del stack principal.'
 
     Write-Host "`n=== DESPLIEGUE COMPLETADO EXITOSAMENTE ===" -ForegroundColor Green
-    $API_URL = aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text
-    Write-Host "Endpoint Final: $API_URL" -ForegroundColor Yellow
 
 } catch {
     Write-Host "`n--- ERROR CRÍTICO EN EL DESPLIEGUE ---" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     exit 1
+} finally {
+    if (Test-Path "lambdas/src") { Remove-Item "lambdas/src" -Recurse -Force }
 }

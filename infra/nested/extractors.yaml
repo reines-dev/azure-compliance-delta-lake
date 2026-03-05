@@ -11,7 +11,7 @@ Globals:
     Timeout: 120
     MemorySize: 256
     Runtime: python3.12
-    CodeUri: ../../ # Referencia a la raíz desde infra/nested/
+    CodeUri: ../../lambdas/ # Apuntamos directamente a la carpeta lambdas/
     Environment:
       Variables:
         COMPLIANCE_LAKE_BUCKET: !Ref BucketName
@@ -48,35 +48,35 @@ Resources:
   ExtractOfacFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: lambdas.extractors.ofac_handler.ofac_handler
+      Handler: extractors.ofac_handler.ofac_handler # Ajustado por nuevo CodeUri
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
   ExtractOnuFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: lambdas.extractors.onu_handler.onu_handler
+      Handler: extractors.onu_handler.onu_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
   ExtractSatFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: lambdas.extractors.sat_handler.sat69b_handler
+      Handler: extractors.sat_handler.sat69b_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
   ExtractPepFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: lambdas.extractors.pep_handler.socrata_pep_handler
+      Handler: extractors.pep_handler.socrata_pep_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
   ExtractOpenSanctionsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: lambdas.extractors.opensanctions_handler.opensanctions_proxy_handler
+      Handler: extractors.opensanctions_handler.opensanctions_proxy_handler
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
