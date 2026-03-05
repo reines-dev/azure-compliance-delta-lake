@@ -38,15 +38,18 @@ C4Container
     }
 
     Boundary(aws_adapter, "Adaptador AWS (Desplegado)") {
-        Container(aws_step_func, "Step Functions", "Orquestador", "Flujo Medallón diario automático.")
-        Container(aws_lambda, "Lambda (3008MB)", "Compute", "Ejecuta el Core optimizado para +58k registros.")
-        Container(aws_s3, "Amazon S3", "Data Lake", "Tablas Delta particionadas por FUENTE.")
+        Container(aws_step_func, "Step Functions", "Orquestador", "Flujo ELT diario paralelo.")
+        Container(aws_lambda, "Lambda Extractors (256MB)", "Compute", "Extracción ligera y persistencia Raw.")
+        Container(aws_glue, "AWS Glue Flex", "PySpark", "Transformación intensiva a Parquet.")
+        Container(aws_s3, "Amazon S3", "Data Lake", "Capas Landing y Gold particionadas.")
     }
 
     Rel(user, fastapi_core, "GET /check/?name=X&source=Y", "HTTPS")
-    Rel(fastapi_core, storage_service, "Consulta optimizada (5 columnas)")
-    Rel(etl_pipeline, storage_service, "Escritura ACID con Predicados")
-    Rel(storage_service, aws_s3, "delta-rs / S3 SDK")
+    Rel(fastapi_core, storage_service, "awswrangler (Partition Pushdown)")
+    Rel(etl_pipeline, aws_step_func, "Integra lógica ELT")
+    Rel(aws_step_func, aws_lambda, "Lanza extracciones")
+    Rel(aws_step_func, aws_glue, "Lanza transformaciones")
+    Rel(storage_service, aws_s3, "Lee Parquet Optimizado")
 ```
 
 ## 3. Flujo de Datos y Optimización

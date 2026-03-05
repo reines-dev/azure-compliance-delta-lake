@@ -11,11 +11,13 @@ Este documento registra el progreso final de la integración de listas restricti
 | **FBI Most Wanted** | FBI (EE.UU.) | ✅ Hecho | API JSON | Operativo 100% en AWS |
 | **FTO List** | Depto. Estado | ✅ Hecho | Static/CSV | Operativo 100% en AWS |
 | **SAT 69B** | SAT (México) | ✅ Hecho | CSV / Fallback | Operativo 100% en AWS |
-| **DEA** | DEA (EE.UU.) | ⚠️ Bloqueado | API JSON | AWS Lambda bloqueada por IP (403) |
-| **Interpol** | Interpol | ⚠️ Bloqueado | API JSON | AWS Lambda bloqueada por IP (403) |
-| **Sanciones UE** | Unión Europea | ⚠️ Inestable | XML | URL oficial reportando 404/Timeout |
-| **Banco Mundial** | World Bank | ⚠️ Inestable | API JSON | URL oficial reportando 404/Timeout |
-| **Contraloría** | Colombia | ⚠️ Inestable | Datos Abiertos | Dataset reportando 404 temporal |
+| **DEA** | DEA (EE.UU.) | ✅ Hecho | OpenSanctions | Proxy para evitar bloqueo IP |
+| **Interpol** | Interpol | ✅ Hecho | OpenSanctions | Proxy para evitar bloqueo IP |
+| **Sanciones UE** | Unión Europea | ✅ Hecho | OpenSanctions | Proxy para evitar bloqueo IP |
+| **Banco Mundial** | World Bank | ✅ Hecho | OpenSanctions | Proxy para evitar bloqueo IP |
+| **Contraloría** | Colombia | ✅ Hecho | Socrata V3 | Integración con Basic Auth |
+| **IADB** | BID | ✅ Hecho | CKAN API | Banco Interamericano de Desarrollo |
+| **PEP Colombia** | Función Pública | ✅ Hecho | Socrata V3 | Personas Expuestas Políticamente |
 
 ---
 

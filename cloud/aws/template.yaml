@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: ComplianceGuard MCP - Backend Infrastructure (FastAPI Multi-Cloud Ready)
+Description: ComplianceGuard MCP - Backend Infrastructure (Step Functions + Glue ELT)
 
 Parameters:
   ComplianceBucketName:
@@ -10,15 +10,18 @@ Parameters:
 Globals:
   Function:
     Timeout: 120
-    MemorySize: 2048
+    MemorySize: 256
+    Runtime: python3.12
     Environment:
       Variables:
         COMPLIANCE_LAKE_BUCKET: !Ref ComplianceBucketName
-        DELTA_TABLE_PATH: !Sub s3://${ComplianceBucketName}/gold/listas
+        LANDING_ZONE_PATH: !Sub s3://${ComplianceBucketName}/landing/listas
+        GOLD_ZONE_PATH: !Sub s3://${ComplianceBucketName}/gold/listas
         OFAC_SDN_URL: "https://www.treasury.gov/ofac/downloads/sdn.csv"
         OFAC_ALT_URL: "https://www.treasury.gov/ofac/downloads/add.csv"
         SAT69B_URL: "http://omawww.sat.gob.mx/cifras_sat/Documents/ListadoGlobalDefinitivo.csv"
         ONU_URL: "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
+        PEP_URL: "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
         ENABLE_DOCS: "True"
         DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
         DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
@@ -29,14 +32,40 @@ Resources:
     Properties:
       BucketName: !Ref ComplianceBucketName
 
+  # ---- IAM Roles ----
+  GlueExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: S3DataLakeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub "arn:aws:s3:::${ComplianceBucket}/*"
+
+  # ---- Capa de Consumo (API Search) ----
   ComplianceSearchFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: reinesdev-compliance-search-func
       PackageType: Image
-      MemorySize: 3008
+      MemorySize: 1024
       ImageConfig:
-        Command: ["cloud.aws.lambda_api.handler"] # Mangum Wrapper for FastAPI
+        Command: ["cloud.aws.lambda_api.handler"]
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref ComplianceBucketName
@@ -44,119 +73,276 @@ Resources:
         CheckNameApi:
           Type: Api
           Properties:
-            Path: /{proxy+} # Let FastAPI route everything
+            Path: /{proxy+}
             Method: any
             RestApiId: !Ref ComplianceApi
     Metadata:
       Dockerfile: docker/Dockerfile.aws
       DockerContext: ../../
 
-  ComplianceIngestFunction:
+  # ---- Capa de Extracción Landing Zone (Lambdas Ligeras) ----
+  ExtractOfacFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-compliance-ingest-func
-      PackageType: Image
-      ImageConfig:
-        Command: ["cloud.aws.lambda_etl.ingest_handler"]
+      FunctionName: reinesdev-extract-ofac
+      Handler: cloud.aws.lambda_extract.ofac_handler.ofac_handler
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref ComplianceBucketName
-    Metadata:
-      Dockerfile: docker/Dockerfile.aws
-      DockerContext: ../../
+        - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
 
-  ComplianceTransformFunction:
+  ExtractOnuFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-compliance-transform-func
-      PackageType: Image
-      ImageConfig:
-        Command: ["cloud.aws.lambda_etl.transform_handler"]
+      FunctionName: reinesdev-extract-onu
+      Handler: cloud.aws.lambda_extract.onu_handler.onu_handler
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref ComplianceBucketName
-    Metadata:
-      Dockerfile: docker/Dockerfile.aws
-      DockerContext: ../../
+        - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
 
-  ComplianceLoadFunction:
+  ExtractSatFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-compliance-load-func
-      PackageType: Image
-      ImageConfig:
-        Command: ["cloud.aws.lambda_etl.load_handler"]
+      FunctionName: reinesdev-extract-sat
+      Handler: cloud.aws.lambda_extract.sat_handler.sat69b_handler
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref ComplianceBucketName
-    Metadata:
-      Dockerfile: docker/Dockerfile.aws
-      DockerContext: ../../
+        - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
 
+  ExtractPepFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: reinesdev-extract-pep
+      Handler: cloud.aws.lambda_extract.pep_handler.socrata_pep_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
+
+  ExtractOpenSanctionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: reinesdev-extract-os
+      Handler: cloud.aws.lambda_extract.opensanctions_handler.opensanctions_proxy_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref ComplianceBucketName }
+
+  # ---- Capa de Transformación Gold Zone (Glue Flex) ----
+  TransformOfacGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: reinesdev-compliance-glue-ofac
+      Role: !GetAtt GlueExecutionRole.Arn
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_ofac.py", PythonVersion: '3' }
+      ExecutionClass: FLEX
+      GlueVersion: '4.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 60
+
+  TransformOnuGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: reinesdev-compliance-glue-onu
+      Role: !GetAtt GlueExecutionRole.Arn
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_onu.py", PythonVersion: '3' }
+      ExecutionClass: FLEX
+      GlueVersion: '4.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 60
+
+  TransformSatGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: reinesdev-compliance-glue-sat
+      Role: !GetAtt GlueExecutionRole.Arn
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_sat.py", PythonVersion: '3' }
+      ExecutionClass: FLEX
+      GlueVersion: '4.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 60
+
+  TransformPepGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: reinesdev-compliance-glue-pep
+      Role: !GetAtt GlueExecutionRole.Arn
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_pep.py", PythonVersion: '3' }
+      ExecutionClass: FLEX
+      GlueVersion: '4.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 60
+
+  TransformOpenSanctionsGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: reinesdev-compliance-glue-opensanctions
+      Role: !GetAtt GlueExecutionRole.Arn
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_opensanctions.py", PythonVersion: '3' }
+      ExecutionClass: FLEX
+      GlueVersion: '4.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 60
+
+  # ---- Glue Catalog & Crawler ----
+  ComplianceDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: compliance_db
+        Description: "Data Catalog for Compliance Data Lake"
+
+  ComplianceCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: reinesdev-compliance-crawler
+      Role: !GetAtt GlueExecutionRole.Arn
+      DatabaseName: !Ref ComplianceDatabase
+      Targets:
+        S3Targets:
+          - Path: !Sub "s3://${ComplianceBucket}/gold/listas/"
+
+  # ---- Orquestador (Step Functions) ----
   ComplianceStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
       Name: reinesdev-compliance-sm-prd
       Definition:
-        Comment: "Orquestador ETL Medallón para múltiples fuentes"
-        StartAt: ProcessSources
+        Comment: "Orquestador ELT: Lambda (Landing) -> Glue Flex (Gold) -> Crawler"
+        StartAt: ParallelExtraction
         States:
-          ProcessSources:
-            Type: Map
-            ItemsPath: "$.sources"
+          ParallelExtraction:
+            Type: Parallel
+            Next: RunCrawler
+            Branches:
+              - StartAt: ExtractOFAC
+                States:
+                  ExtractOFAC:
+                    Type: Task
+                    Resource: !GetAtt ExtractOfacFunction.Arn
+                    Next: TransformOFAC
+                  TransformOFAC:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref TransformOfacGlueJob
+                    End: true
+              - StartAt: ExtractONU
+                States:
+                  ExtractONU:
+                    Type: Task
+                    Resource: !GetAtt ExtractOnuFunction.Arn
+                    Next: TransformONU
+                  TransformONU:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref TransformOnuGlueJob
+                    End: true
+              - StartAt: ExtractSAT
+                States:
+                  ExtractSAT:
+                    Type: Task
+                    Resource: !GetAtt ExtractSatFunction.Arn
+                    Next: TransformSAT
+                  TransformSAT:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref TransformSatGlueJob
+                    End: true
+              - StartAt: ExtractPEP
+                States:
+                  ExtractPEP:
+                    Type: Task
+                    Resource: !GetAtt ExtractPepFunction.Arn
+                    Next: TransformPEP
+                  TransformPEP:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref TransformPepGlueJob
+                    End: true
+              # OpenSanctions Branches (FBI, EU, Interpol, DEA, FTO, WB, IADB)
+              - StartAt: ExtractFBI
+                States:
+                  ExtractFBI:
+                    Type: Task
+                    Resource: !GetAtt ExtractOpenSanctionsFunction.Arn
+                    Parameters:
+                      "source_id": "fbi_wanted"
+                    Next: TransformFBI
+                  TransformFBI:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref TransformOpenSanctionsGlueJob
+                      Arguments:
+                        "--OPENSANCTIONS_SOURCE_ID": "fbi_wanted"
+                    End: true
+              - StartAt: ExtractUE
+                States:
+                  ExtractUE:
+                    Type: Task
+                    Resource: !GetAtt ExtractOpenSanctionsFunction.Arn
+                    Parameters:
+                      "source_id": "eu_fsf"
+                    Next: TransformUE
+                  TransformUE:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref TransformOpenSanctionsGlueJob
+                      Arguments:
+                        "--OPENSANCTIONS_SOURCE_ID": "eu_fsf"
+                    End: true
+          RunCrawler:
+            Type: Task
+            Resource: arn:aws:states:::glue:startCrawlerRun
             Parameters:
-              "source.$": "$$.Map.Item.Value"
-            ResultPath: "$.ProcessingResults"
+              Name: !Ref ComplianceCrawler
             End: true
-            ItemProcessor:
-              ProcessorConfig:
-                Mode: INLINE
-              StartAt: Ingest
-              States:
-                Ingest:
-                  Type: Task
-                  Resource: !GetAtt ComplianceIngestFunction.Arn
-                  Next: Transform
-                Transform:
-                  Type: Task
-                  Resource: !GetAtt ComplianceTransformFunction.Arn
-                  Next: Load
-                Load:
-                  Type: Task
-                  Resource: !GetAtt ComplianceLoadFunction.Arn
-                  End: true
       Policies:
         - LambdaInvokePolicy:
-            FunctionName: !Ref ComplianceIngestFunction
+            FunctionName: !Ref ExtractOfacFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref ComplianceTransformFunction
+            FunctionName: !Ref ExtractOnuFunction
         - LambdaInvokePolicy:
-            FunctionName: !Ref ComplianceLoadFunction
+            FunctionName: !Ref ExtractSatFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExtractPepFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ExtractOpenSanctionsFunction
+        - Statement:
+            - Effect: Allow
+              Action:
+                - glue:StartJobRun
+                - glue:GetJobRun
+                - glue:GetJobRuns
+                - glue:BatchStopJobRun
+              Resource: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/*" # Wildcard to cover all Jobs
+        - Statement:
+            - Effect: Allow
+              Action:
+                - glue:StartCrawlerRun
+              Resource: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${ComplianceCrawler}"
       Events:
         DailyRun:
           Type: Schedule
           Properties:
             Schedule: cron(0 6 * * ? *)
             Name: reinesdev-compliance-cron-prd
-            Description: "Ejecución diaria de fuentes"
-            Input: '{"sources": ["ofac", "onu", "sat69b", "fbi", "worldbank", "ue", "dea", "interpol", "fto", "contraloria", "iadb"]}'
 
   ComplianceApi:
     Type: AWS::Serverless::Api
     Properties:
       Name: reinesdev-compliance-api-prd
       StageName: prod
-      Auth:
-        ApiKeyRequired: false # Desactivado para facilitar acceso a Swagger /docs
 
   ComplianceUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
     DependsOn: ComplianceApiprodStage
     Properties:
       UsagePlanName: reinesdev-compliance-plan-prd
-      Quota:
-        Limit: 500
-        Period: MONTH
       ApiStages:
         - ApiId: !Ref ComplianceApi
           Stage: prod
@@ -165,6 +351,3 @@ Outputs:
   ApiUrl:
     Description: "URL del API Gateway (FastAPI root)"
     Value: !Sub "https://${ComplianceApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
-  EtlStateMachineArn:
-    Description: "ARN del Orquestador ETL (Step Function)"
-    Value: !Ref ComplianceStateMachine

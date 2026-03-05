@@ -9,10 +9,11 @@ El sistema ha alcanzado su madurez productiva en AWS, consolidando una plataform
 *   **Autenticación Socrata:** Integración de API V3 con Basic Auth para la Contraloría de Colombia (Datos Abiertos).
 *   **Certificación E2E:** Suite de pruebas `tests/acceptance_e2e_aws.py` validada con **100% de éxito** en AWS Production.
 
-## 2. Arquitectura y Optimización (AWS Lambda)
-*   **Memoria:** Escalada a **3008MB** en `template.yaml` para soportar el Data Lake de ~60,000 registros en RAM.
-*   **Carga Selectiva:** `StorageService.get_delta_table()` optimizado para cargar solo 5 columnas críticas, reduciendo el consumo de RAM.
-*   **API Gateway:** Swagger UI activo en `/prod/docs`. Se añadió filtro por `source` y parámetro `refresh=true` para invalidación de caché.
+## 2. Arquitectura y Optimización (AWS ELT)
+*   **Orquestación:** Cambio de ETL monolítico a **ELT** utilizando **AWS Step Functions** para procesos paralelos.
+*   **Transformación:** Migración completada a **AWS Glue Flex (PySpark)**, reduciendo los costos de computo y superando los límites de memoria de Pandas/DeltaLake.
+*   **Almacenamiento:** Transición de DeltaLake a **S3 Parquet Nativo** particionado (`fuente=X`), administrado vía AWS Glue Data Catalog.
+*   **Búsqueda (API):** Consumo optimizado con `awswrangler` (Partition Pushdown), bajando la memoria requerida en la Lambda de **3008MB a 1024MB** y Extractoras a **256MB**.
 
 ## 3. Credenciales y Seguridad
 *   **Socrata (Colombia):** Credenciales configuradas en `.env` y mapeadas en `Settings` (`DATOS_GOV_KEY_ID`, `DATOS_GOV_API_KEY`).

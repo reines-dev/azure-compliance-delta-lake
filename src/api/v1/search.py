@@ -44,18 +44,30 @@ async def check_name(
 
     global df_cache
     
-    if df_cache is None or refresh:
-        df_cache = storage.get_delta_table()
-
-    if df_cache is None or df_cache.empty:
-        return SearchResponse(query=name, match_found=False, results=[])
-
-    # Aplicar filtro de fuente si se proporciona
-    df_search = df_cache
+    # Si Refresh o si NO hay cache, AND no me piden fuente especifica, cargo todo en memoria.
+    # SI me piden fuente específica (source != None), leo solo la partición. 
+    # Optimizazción: El particionado Parquet s3 pushdown es brutalmente rápido por awswrangler.
+    
+    df_search = None
+    
     if source:
-        df_search = df_cache[df_cache['fuente'] == source.upper()]
-        if df_search.empty:
-            return SearchResponse(query=name, match_found=False, results=[])
+        # Búsqueda dedicada a una partición específica. (Ahorra muchísima RAM para Requests filtrados)
+        try:
+            df_search = storage.get_delta_table(source_filter=source)
+        except Exception as e:
+             import logging
+             logging.error(f"Error reading partition {source}: {e}")
+             import pandas as pd
+             df_search = pd.DataFrame()
+             
+    else:
+        # Búsqueda global (Carga completa)
+        if df_cache is None or refresh:
+            df_cache = storage.get_delta_table()
+        df_search = df_cache
+
+    if df_search is None or df_search.empty:
+        return SearchResponse(query=name, match_found=False, results=[])
 
     try:
         clean_query = normalize_name(name)
@@ -76,7 +88,7 @@ async def check_name(
             meta_dict = {}
             try:
                 meta_dict = json.loads(row['metadata'])
-            except:
+            except (json.JSONDecodeError, TypeError):
                 meta_dict = {"raw": row['metadata']}
 
             matches.append(MatchResult(

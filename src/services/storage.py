@@ -1,29 +1,25 @@
 import os
 import io
 import pandas as pd
-import pyarrow as pa
 import logging
+import awswrangler as wr
 from typing import Optional
-from deltalake import write_deltalake, DeltaTable
 
 class StorageService:
     def __init__(self, bucket_name: str, delta_table_path: str):
         self.bucket = bucket_name
         self.delta_table_path = delta_table_path or ""
         self.is_aws = "s3://" in self.delta_table_path
-        self.storage_options = {}
         
         if self.is_aws:
             import boto3
             self.s3_client = boto3.client('s3')
-            self.storage_options = {"AWS_S3_ALLOW_UNSAFE_RENAME": "true"}
         else:
             try:
                 from azure.storage.blob import BlobServiceClient
                 from azure.identity import DefaultAzureCredential
                 account_url = f"https://{self.bucket.split('/')[0]}.blob.core.windows.net"
                 self.blob_service_client = BlobServiceClient(account_url, credential=DefaultAzureCredential())
-                self.storage_options = {"azure_storage_use_managed_identity": "true"}
             except Exception:
                 pass
 
@@ -46,20 +42,39 @@ class StorageService:
             return pd.read_parquet(io.BytesIO(response['Body'].read()))
         return pd.DataFrame()
 
-    def write_gold_delta(self, df: pd.DataFrame, source: str) -> str:
-        df = df.copy()
-        for col in ['id_unico', 'nombre_original', 'nombre_limpio', 'fuente', 'tipo_lista', 'metadata']:
-            if col in df.columns:
-                df[col] = df[col].astype(str)
-        table = pa.Table.from_pandas(df)
-        write_deltalake(self.delta_table_path, table, mode="overwrite", partition_by=["fuente"], predicate=f"fuente = '{source.upper()}'", storage_options=self.storage_options, schema_mode="merge")
-        return self.delta_table_path
-
-    def get_delta_table(self) -> Optional[pd.DataFrame]:
+    def get_delta_table(self, source_filter: Optional[str] = None) -> Optional[pd.DataFrame]:
+        """
+        Reads Gold Zone Parquet files from S3 using AWS Wrangler.
+        Allows column pushdown to save memory in the Lambda execution environment.
+        """
         try:
-            # OPTIMIZACIÓN CRÍTICA: Solo cargar columnas para búsqueda
-            dt = DeltaTable(self.delta_table_path, storage_options=self.storage_options)
-            return dt.to_pandas(columns=['nombre_original', 'nombre_limpio', 'fuente', 'tipo_lista', 'metadata'])
+            if not self.is_aws:
+                # Fallback purely for local/azure testing if needed
+                logging.warning("Reading from non-AWS source is not fully optimized for PyArrow parquets.")
+                return pd.DataFrame()
+            
+            # OPTIMIZACIÓN CRÍTICA: Solo cargar columnas para búsqueda directamente desde S3 Parquet
+            columns_to_read = ['nombre_original', 'nombre_limpio', 'fuente', 'tipo_lista', 'metadata']
+            
+            # Using AWS Wrangler to read partitioned Parquet dataset
+            logging.info(f"Reading dataset from {self.delta_table_path}")
+            
+            if source_filter:
+                logging.info(f"Applying partition filter for source: {source_filter}")
+                df = wr.s3.read_parquet(
+                    path=self.delta_table_path,
+                    dataset=True,
+                    columns=columns_to_read,
+                    partition_filter=lambda x: x["fuente"] == source_filter.upper()
+                )
+            else:
+                df = wr.s3.read_parquet(
+                    path=self.delta_table_path,
+                    dataset=True,
+                    columns=columns_to_read
+                )
+            return df
+            
         except Exception as e:
-            logging.error(f"Error loading Delta Table: {e}")
+            logging.error(f"Error loading Parquet Dataset from S3: {e}")
             raise e

@@ -1,31 +1,30 @@
 # Sistema de Consulta de Listas Restrictivas (Compliance) 🛡️
 
-Solución Multi-Cloud escalable para la gestión y consulta de listas restrictivas (OFAC, ONU, SAT69B, UE, DEA, LPB, IRAQ). Implementa una **Arquitectura Medallón** sobre **Delta Lake**, diseñada con el patrón **Hexagonal Light** para ser 100% agnóstica a la nube mediante **FastAPI Core**.
+Solución Multi-Cloud escalable para la gestión y consulta de listas restrictivas (OFAC, ONU, SAT69B, UE, DEA, LPB, IRAQ, PEP). Implementa una **Arquitectura Data Lakehouse ELT** sobre **AWS Glue y S3 Parquet Nativo**, diseñada con el patrón **Hexagonal Light** para potenciar el análisis concurrente con **FastAPI Core**.
 
 ---
 
 ## 🚀 Características Principales
 
-- **Arquitectura Hexagonal (Agnóstica a la Nube)**: La lógica de negocio está totalmente aislada en `src/`. Esto permite desplegar exactamente el mismo código base como AWS Lambdas/StepFunctions o como Azure Functions/LogicApps sin modificar el núcleo.
-- **Delta Lake Local & Cloud**: Implementación eficiente con `delta-rs` para lectura/escritura directa a ADLS Gen2 o Amazon S3 Bucket sin necesidad de clústeres Apache Spark.
+- **Arquitectura Hexagonal (Agnóstica a la Nube)**: La lógica de negocio está totalmente aislada en `src/`. Esto permite desplegar exactamente el mismo código base en diferentes orquestadores.
+- **ELT Data Lakehouse**: Implementación eficiente con extracciones ligeras (Step Functions + Lambdas) y transformaciones masivas centralizadas en **AWS Glue Flex (PySpark)** sobre S3 Parquet.
+- **Partition Pushdown**: Búsqueda asombrosamente rápida y de bajo consumo de RAM utilizando lectura columnar optimizada con `awswrangler` sobre el Catalogo de Datos de AWS Glue.
 - **Fuzzy Matching Inteligente**: Búsqueda difusa de alta precisión utilizando el algoritmo WRatio de `rapidfuzz`.
-- **API Moderna (FastAPI)**: Documentación automática en Swagger, esquemas Pydantic y un rendimiento veloz.
 
 ---
 
-## 🏗️ Arquitectura (Multi-Cloud Ready)
+## 🏗️ Arquitectura ELT (Multi-Cloud Ready)
 
 ```mermaid
 graph TD
-    Trigger[Orquestador ETL: AWS StepFunctions / Azure Logic App] -->|Map Array| Ingest[Ingest Func]
-    Ingest -->|Download| Bronce[Bronze S3/ADLS]
-    Ingest --> Transform[Transform Func]
-    Transform -->|Clean| Silver[Silver S3/ADLS]
-    Transform --> Load[Load Func]
-    Load -->|Delta Lake Upsert| Gold[Gold Layer S3/ADLS]
+    Trigger[Orquestador: AWS StepFunctions / Azure Logic App] -->|Parallel Map| Ingest[Lambda Extractors]
+    Ingest -->|Download Raw JSON/CSV| Bronce[Landing Zone S3/ADLS]
+    Trigger --> Transform[Glue Flex / Spark Jobs]
+    Bronce --> Transform
+    Transform -->|Clean & Format| Gold[Gold Zone Parquet S3/ADLS]
     
     API[Client / API Gateway] -->|REST /check| FastAPI[FastAPI Core]
-    FastAPI -->|Query| Gold
+    FastAPI -->|awswrangler Pushdown| Gold
 ```
 
 ## 📂 Estructura del Proyecto
