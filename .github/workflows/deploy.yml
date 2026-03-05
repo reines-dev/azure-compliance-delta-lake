@@ -5,6 +5,9 @@ on:
     branches:
       - main
       - feature/initial-setup
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 env:
@@ -32,12 +35,13 @@ jobs:
           pip install -r api/requirements.txt
           pip install -r lambdas/requirements-aws.txt
           pip install -r requirements-test.txt
-          # Instalar el paquete actual en modo editable para que los tests vean src/
+          # Intentar instalar en modo editable para resolución de rutas
           pip install -e . || true
 
       - name: 🏃 Run tests with coverage
         run: |
-          # Ejecutar tests y fallar si la cobertura es inferior al 80%
+          # Falla el job si la cobertura es < 80%
+          # Esto bloqueará el estado del PR en GitHub
           pytest tests/unit/ \
             --cov=src \
             --cov=lambdas \
@@ -49,6 +53,7 @@ jobs:
     name: 🛡️ Enforce PR Policy
     needs: [unit-tests]
     runs-on: ubuntu-latest
+    # Solo se aplica en push directo a main, no en Pull Requests
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: 📥 Checkout repository
@@ -76,20 +81,16 @@ jobs:
   deploy:
     name: 🚀 Atomic Deployment
     needs: [unit-tests, enforce-policy]
-    # Se ejecuta si los tests pasan Y (es feature branch o (es main y PR policy se cumple))
+    # No desplegar si es un Pull Request (solo testeo). Desplegar en push a main o feature.
     if: |
       always() && 
       needs.unit-tests.result == 'success' &&
+      github.event_name != 'pull_request' &&
       (needs.enforce-policy.result == 'success' || needs.enforce-policy.result == 'skipped' || github.ref != 'refs/heads/main')
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
 
       - name: ☁️ Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -116,15 +117,9 @@ jobs:
           IMAGE_TAG: latest
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          
-          if [ -z "$ECR_REGISTRY" ]; then
-            echo "❌ ERROR: No se pudo obtener the ECR Registry."
-            exit 1
-          fi
+          if [ -z "$ECR_REGISTRY" ]; then exit 1; fi
 
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "🚀 Building image: $IMAGE_URI"
-
           docker build -t $IMAGE_URI -f api/Dockerfile.aws .
           docker push $IMAGE_URI
           
