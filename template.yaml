@@ -25,12 +25,6 @@ Globals:
         DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
         DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
 
-Resources:
-  ComplianceBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref ComplianceBucketName
-
   # ---- IAM Roles ----
   GlueExecutionRole:
     Type: AWS::IAM::Role
@@ -54,7 +48,7 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Sub "arn:aws:s3:::${ComplianceBucket}/*"
+                Resource: !Sub "arn:aws:s3:::${ComplianceBucketName}/*"
 
   # ---- Capa de Consumo (API Search) ----
   ComplianceSearchFunction:
@@ -74,7 +68,6 @@ Resources:
           Properties:
             Path: /{proxy+}
             Method: any
-            RestApiId: !Ref ComplianceApi
     Metadata:
       Dockerfile: docker/Dockerfile.aws
       DockerContext: .
@@ -83,7 +76,6 @@ Resources:
   ExtractOfacFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-extract-ofac
       Runtime: python3.12
       Handler: cloud.aws.lambda_extract.ofac_handler.ofac_handler
       Policies:
@@ -92,7 +84,6 @@ Resources:
   ExtractOnuFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-extract-onu
       Runtime: python3.12
       Handler: cloud.aws.lambda_extract.onu_handler.onu_handler
       Policies:
@@ -101,7 +92,6 @@ Resources:
   ExtractSatFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-extract-sat
       Runtime: python3.12
       Handler: cloud.aws.lambda_extract.sat_handler.sat69b_handler
       Policies:
@@ -110,7 +100,6 @@ Resources:
   ExtractPepFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-extract-pep
       Runtime: python3.12
       Handler: cloud.aws.lambda_extract.pep_handler.socrata_pep_handler
       Policies:
@@ -119,7 +108,6 @@ Resources:
   ExtractOpenSanctionsFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-extract-os
       Runtime: python3.12
       Handler: cloud.aws.lambda_extract.opensanctions_handler.opensanctions_proxy_handler
       Policies:
@@ -129,9 +117,8 @@ Resources:
   TransformOfacGlueJob:
     Type: AWS::Glue::Job
     Properties:
-      Name: reinesdev-compliance-glue-ofac
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_ofac.py", PythonVersion: '3' }
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_ofac.py", PythonVersion: '3' }
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -141,9 +128,8 @@ Resources:
   TransformOnuGlueJob:
     Type: AWS::Glue::Job
     Properties:
-      Name: reinesdev-compliance-glue-onu
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_onu.py", PythonVersion: '3' }
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_onu.py", PythonVersion: '3' }
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -153,9 +139,8 @@ Resources:
   TransformSatGlueJob:
     Type: AWS::Glue::Job
     Properties:
-      Name: reinesdev-compliance-glue-sat
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_sat.py", PythonVersion: '3' }
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_sat.py", PythonVersion: '3' }
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -165,9 +150,8 @@ Resources:
   TransformPepGlueJob:
     Type: AWS::Glue::Job
     Properties:
-      Name: reinesdev-compliance-glue-pep
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_pep.py", PythonVersion: '3' }
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_pep.py", PythonVersion: '3' }
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -177,9 +161,8 @@ Resources:
   TransformOpenSanctionsGlueJob:
     Type: AWS::Glue::Job
     Properties:
-      Name: reinesdev-compliance-glue-opensanctions
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucket}/system/glue_jobs/glue_opensanctions.py", PythonVersion: '3' }
+      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_opensanctions.py", PythonVersion: '3' }
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -190,7 +173,6 @@ Resources:
   ComplianceDatabase:
     Type: AWS::Glue::Database
     Properties:
-      CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: compliance_db
         Description: "Data Catalog for Compliance Data Lake"
@@ -198,12 +180,11 @@ Resources:
   ComplianceCrawler:
     Type: AWS::Glue::Crawler
     Properties:
-      Name: reinesdev-compliance-crawler
       Role: !GetAtt GlueExecutionRole.Arn
       DatabaseName: !Ref ComplianceDatabase
       Targets:
         S3Targets:
-          - Path: !Sub "s3://${ComplianceBucket}/gold/listas/"
+          - Path: !Sub "s3://${ComplianceBucketName}/gold/listas/"
 
   # ---- Orquestador (Step Functions) ----
   ComplianceStateMachine:
@@ -327,12 +308,12 @@ Resources:
                 - glue:GetJobRun
                 - glue:GetJobRuns
                 - glue:BatchStopJobRun
-              Resource: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/*" # Wildcard to cover all Jobs
+              Resource: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/*" 
         - Statement:
             - Effect: Allow
               Action:
                 - glue:StartCrawlerRun
-              Resource: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${ComplianceCrawler}"
+              Resource: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/*"
       Events:
         DailyRun:
           Type: Schedule
@@ -348,7 +329,6 @@ Resources:
 
   ComplianceUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    DependsOn: ComplianceApiprodStage
     Properties:
       UsagePlanName: reinesdev-compliance-plan-prd
       ApiStages:
