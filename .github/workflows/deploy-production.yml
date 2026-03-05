@@ -13,8 +13,8 @@ env:
   LAKE_BUCKET: reinesdev-compliance-lake-prd
 
 jobs:
-  deploy:
-    name: 🌐 Atomic Deployment
+  unit-tests:
+    name: 🧪 Unit Tests & Coverage
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
@@ -24,6 +24,31 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/api/requirements.txt
+          pip install -r lambdas/requirements-aws.txt
+          pip install -r requirements-test.txt
+          pip install -e . || true
+
+      - name: 🏃 Run tests with coverage
+        run: |
+          # Falla si la cobertura es < 80%
+          pytest tests/unit/ \
+            --cov=src \
+            --cov=lambdas \
+            --cov-report=term-missing \
+            --cov-fail-under=80
+
+  deploy:
+    name: 🌐 Atomic Deployment
+    needs: [unit-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
 
       - name: ☁️ Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -55,17 +80,14 @@ jobs:
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           echo "🚀 Building image: $IMAGE_URI"
 
-          # El Dockerfile ahora está en src/api/
           docker build -t $IMAGE_URI -f src/api/Dockerfile.aws .
           docker push $IMAGE_URI
           
-          # 2. CloudFormation Package
           aws cloudformation package \
             --template-file infra/root-template.yaml \
             --s3-bucket ${{ env.SAM_BUCKET }} \
             --output-template-file packaged-root.yaml
 
-          # 3. Deploy Root Stack
           aws cloudformation deploy \
             --template-file packaged-root.yaml \
             --stack-name ${{ env.BASE_STACK }}-root \
