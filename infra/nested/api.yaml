@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "Capa 4: API de Consumo"
+Description: "Capa 4: API de Consumo (Versión Simplificada para Debug)"
 
 Parameters:
   BucketName:
@@ -12,13 +12,11 @@ Resources:
   ComplianceApi:
     Type: AWS::Serverless::Api
     Properties:
-      Name: reinesdev-compliance-api-prd
       StageName: prod
 
   ComplianceSearchFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-compliance-search-func
       PackageType: Image
       ImageUri: !Ref ImageUri
       MemorySize: 1024
@@ -38,13 +36,14 @@ Resources:
             Method: any
             RestApiId: !Ref ComplianceApi
 
-  ComplianceUsagePlan:
-    Type: AWS::ApiGateway::UsagePlan
-    Properties:
-      UsagePlanName: reinesdev-compliance-plan-prd
-      ApiStages:
-        - ApiId: !Ref ComplianceApi
-          Stage: prod
+  # Temporalmente comentado para diagnosticar el fallo de creación
+  # ComplianceUsagePlan:
+  #   Type: AWS::ApiGateway::UsagePlan
+  #   DependsOn: ComplianceApi
+  #   Properties:
+  #     ApiStages:
+  #       - ApiId: !Ref ComplianceApi
+  #         Stage: prod
 
 Outputs:
   ApiUrl:
