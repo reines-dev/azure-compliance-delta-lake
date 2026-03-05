@@ -121,7 +121,7 @@ Resources:
       Role: !GetAtt GlueExecutionRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_ofac.py"
+        ScriptLocation: "s3://reinesdev-compliance-lake-prd/system/glue_jobs/glue_ofac.py"
         PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
@@ -135,7 +135,7 @@ Resources:
       Role: !GetAtt GlueExecutionRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_onu.py"
+        ScriptLocation: "s3://reinesdev-compliance-lake-prd/system/glue_jobs/glue_onu.py"
         PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
@@ -149,7 +149,7 @@ Resources:
       Role: !GetAtt GlueExecutionRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_sat.py"
+        ScriptLocation: "s3://reinesdev-compliance-lake-prd/system/glue_jobs/glue_sat.py"
         PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
@@ -163,7 +163,7 @@ Resources:
       Role: !GetAtt GlueExecutionRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_pep.py"
+        ScriptLocation: "s3://reinesdev-compliance-lake-prd/system/glue_jobs/glue_pep.py"
         PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
@@ -177,7 +177,7 @@ Resources:
       Role: !GetAtt GlueExecutionRole.Arn
       Command:
         Name: glueetl
-        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_opensanctions.py"
+        ScriptLocation: "s3://reinesdev-compliance-lake-prd/system/glue_jobs/glue_opensanctions.py"
         PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
