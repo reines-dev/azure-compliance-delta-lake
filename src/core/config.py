@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # AWS/Azure agnostic config
     compliance_lake_bucket: str = "reinesdev-compliance-lake-prd"
-    delta_table_path: str
+    delta_table_path: str = "s3://reinesdev-compliance-lake-prd/gold/listas"
     enable_docs: bool = True
     
     # Azure Specific (Optional if in AWS)
