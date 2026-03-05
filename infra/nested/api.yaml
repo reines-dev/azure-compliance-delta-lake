@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "Capa 4: API de Consumo (Versión Simplificada para Debug)"
+Description: "Capa 4: API de Consumo (Producción)"
 
 Parameters:
   BucketName:
@@ -13,6 +13,8 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: prod
+      Auth:
+        ApiKeyRequired: true # Requerir API Key para que el Usage Plan tenga sentido
 
   ComplianceSearchFunction:
     Type: AWS::Serverless::Function
@@ -36,14 +38,22 @@ Resources:
             Method: any
             RestApiId: !Ref ComplianceApi
 
-  # Temporalmente comentado para diagnosticar el fallo de creación
-  # ComplianceUsagePlan:
-  #   Type: AWS::ApiGateway::UsagePlan
-  #   DependsOn: ComplianceApi
-  #   Properties:
-  #     ApiStages:
-  #       - ApiId: !Ref ComplianceApi
-  #         Stage: prod
+  # Plan de Uso para controlar el consumo y habilitar API Keys
+  ComplianceUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ComplianceApi
+    Properties:
+      UsagePlanName: "ComplianceGuard-Standard-Plan"
+      Description: "Plan de uso estándar para consulta de listas"
+      ApiStages:
+        - ApiId: !Ref ComplianceApi
+          Stage: prod
+      Throttle:
+        BurstLimit: 10
+        RateLimit: 5
+      Quota:
+        Limit: 1000
+        Period: MONTH
 
 Outputs:
   ApiUrl:
