@@ -1,4 +1,6 @@
 import os
+# ComplianceGuard - API Entry Point
+# Reorganized into modular structure for production stability.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.v1 import search, etl
