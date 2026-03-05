@@ -1,0 +1,71 @@
+name: 🚀 Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  REGION: us-east-1
+  SAM_BUCKET: hreines-sam-deploy
+  BASE_STACK: reinesdev-compliance
+  LAKE_BUCKET: reinesdev-compliance-lake-prd
+
+jobs:
+  deploy:
+    name: 🌐 Atomic Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: ☁️ Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.REGION }}
+
+      - name: 🔑 Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: 📤 Sync AWS Glue Scripts
+        run: |
+          aws s3 sync glue/jobs/ s3://${{ env.LAKE_BUCKET }}/system/glue_jobs/ --exclude "*" --include "*.py"
+
+      - name: 🏗️ Prepare Lambda Package
+        run: |
+          cp -r src/ lambdas/src/
+
+      - name: 🐳 Build, Push & Package
+        env:
+          ECR_REPOSITORY: reinesdev-compliance-api-repo
+          IMAGE_TAG: latest
+        run: |
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          if [ -z "$ECR_REGISTRY" ]; then exit 1; fi
+
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "🚀 Building image: $IMAGE_URI"
+
+          docker build -t $IMAGE_URI -f api/Dockerfile.aws .
+          docker push $IMAGE_URI
+          
+          aws cloudformation package \
+            --template-file infra/root-template.yaml \
+            --s3-bucket ${{ env.SAM_BUCKET }} \
+            --output-template-file packaged-root.yaml
+
+          aws cloudformation deploy \
+            --template-file packaged-root.yaml \
+            --stack-name ${{ env.BASE_STACK }}-root \
+            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides ImageUri=$IMAGE_URI
