@@ -92,5 +92,4 @@ jobs:
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --no-confirm-changeset \
             --resolve-image-repos \
-            --resolve-s3 \
             --debug

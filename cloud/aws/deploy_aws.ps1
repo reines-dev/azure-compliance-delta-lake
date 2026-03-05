@@ -25,7 +25,7 @@ if ($LASTEXITCODE -ne 0) {
 
 # 2. Build con SAM
 Write-Host "[2/3] Construyendo paquete de despliegue SAM..."
-sam build --template cloud/aws/template.yaml
+sam build --template template.yaml
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Falló la construcción SAM." -ForegroundColor Red
@@ -39,10 +39,12 @@ sam deploy `
     --region $REGION `
     --s3-bucket $SAM_BUCKET `
     --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND `
-    --no-confirm-changeset
+    --no-confirm-changeset `
+    --resolve-image-repos
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "--- Despliegue ELT Completado Exitosamente ---" -ForegroundColor Green
+    # Usando cmd /c para llamar a aws y evitar problemas de parsing de PS en la captura de salida si falla
     $API_URL = aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text --no-cli-pager
     Write-Host "API Gateway (FastAPI) URL: $API_URL" -ForegroundColor Yellow
     Write-Host "Nota: AWS Step Functions y Glue están listos para orquestar la ingesta en S3." -ForegroundColor Yellow
