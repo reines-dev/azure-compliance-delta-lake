@@ -25,6 +25,7 @@ Globals:
         DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
         DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
 
+Resources:
   # ---- IAM Roles ----
   GlueExecutionRole:
     Type: AWS::IAM::Role
