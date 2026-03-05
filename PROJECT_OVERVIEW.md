@@ -16,7 +16,7 @@ El sistema ha sido completamente certificado con un **100% de éxito en pruebas 
 ## 🚀 Logros Técnicos Principales
 
 1.  **Motor Fonético Unificado:** Algoritmo Fuzzy Match (RapidFuzz) que permite detectar variaciones ortográficas, errores tipográficos y alias en milisegundos.
-2.  **Arquitectura Delta Lake ACID:** Almacenamiento en S3 utilizando el estándar de la industria para garantizar consistencia en las actualizaciones diarias de las listas.
+2.  **Arquitectura ELT Data Lakehouse:** Almacenamiento S3 nativo en formato Parquet, orquestación concurrente con AWS Step Functions y procesamiento Spark con AWS Glue para máxima rentabilidad y consistencia.
 3.  **Resiliencia Cloud Native:** Ingesta híbrida capaz de saltar bloqueos de IP gubernamentales y utilizar autenticación oficial (Socrata API V3).
 4.  **Agnóstico a la Nube:** El código base es 100% portable entre **AWS Lambda** y **Azure Functions**, permitiendo estrategias de Disaster Recovery multi-nube.
 5.  **Swagger UI Integrado:** Documentación viva y probador de API disponible en la ruta `/docs`.
@@ -24,7 +24,8 @@ El sistema ha sido completamente certificado con un **100% de éxito en pruebas 
 ## 🛠️ Stack Tecnológico
 *   **Lenguaje:** Python 3.12 (Agnóstico).
 *   **Framework:** FastAPI + Mangum.
-*   **Data Lake:** Delta Lake (delta-rs) + Amazon S3.
+*   **Data Lake:** S3 Parquet Nativo + AWS Glue Data Catalog.
+*   **Transformación:** AWS Glue Flex Jobs (PySpark).
 *   **Orquestación:** Step Functions (Serverless Workflow).
 *   **Infraestructura:** AWS SAM (Infrastructure as Code).
 

@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     interpol_red_notices_url: str = "https://data.opensanctions.org/datasets/latest/interpol_red_notices/entities.ftm.json"
     fto_list_url: str = "https://www.state.gov/wp-content/uploads/2023/05/FTO-List-CSV.csv"
     contraloria_url: str = "https://www.datos.gov.co/api/v3/views/jr8e-e8tu/query.json"
+    pep_url: str = "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
     
     # Datos.gov.co Credentials
     datos_gov_key_id: Optional[str] = None

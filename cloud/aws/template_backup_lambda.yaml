@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ComplianceGuard MCP - Backend Infrastructure (FastAPI Multi-Cloud Ready)
+
+Parameters:
+  ComplianceBucketName:
+    Type: String
+    Default: reinesdev-compliance-lake-prd
+
+Globals:
+  Function:
+    Timeout: 120
+    MemorySize: 2048
+    Environment:
+      Variables:
+        COMPLIANCE_LAKE_BUCKET: !Ref ComplianceBucketName
+        DELTA_TABLE_PATH: !Sub s3://${ComplianceBucketName}/gold/listas
+        OFAC_SDN_URL: "https://www.treasury.gov/ofac/downloads/sdn.csv"
+        OFAC_ALT_URL: "https://www.treasury.gov/ofac/downloads/add.csv"
+        SAT69B_URL: "http://omawww.sat.gob.mx/cifras_sat/Documents/ListadoGlobalDefinitivo.csv"
+        ONU_URL: "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
+        PEP_URL: "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
+        ENABLE_DOCS: "True"
+        DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
+        DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
+
+Resources:
+  ComplianceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ComplianceBucketName
+
+  ComplianceSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: reinesdev-compliance-search-func
+      PackageType: Image
+      MemorySize: 3008
+      ImageConfig:
+        Command: ["cloud.aws.lambda_api.handler"] # Mangum Wrapper for FastAPI
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ComplianceBucketName
+      Events:
+        CheckNameApi:
+          Type: Api
+          Properties:
+            Path: /{proxy+} # Let FastAPI route everything
+            Method: any
+            RestApiId: !Ref ComplianceApi
+    Metadata:
+      Dockerfile: docker/Dockerfile.aws
+      DockerContext: ../../
+
+  ComplianceIngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: reinesdev-compliance-ingest-func
+      PackageType: Image
+      ImageConfig:
+        Command: ["cloud.aws.lambda_etl.ingest_handler"]
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ComplianceBucketName
+    Metadata:
+      Dockerfile: docker/Dockerfile.aws
+      DockerContext: ../../
+
+  ComplianceTransformFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: reinesdev-compliance-transform-func
+      PackageType: Image
+      ImageConfig:
+        Command: ["cloud.aws.lambda_etl.transform_handler"]
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ComplianceBucketName
+    Metadata:
+      Dockerfile: docker/Dockerfile.aws
+      DockerContext: ../../
+
+  ComplianceLoadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: reinesdev-compliance-load-func
+      PackageType: Image
+      ImageConfig:
+        Command: ["cloud.aws.lambda_etl.load_handler"]
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref ComplianceBucketName
+    Metadata:
+      Dockerfile: docker/Dockerfile.aws
+      DockerContext: ../../
+
+  ComplianceStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: reinesdev-compliance-sm-prd
+      Definition:
+        Comment: "Orquestador ETL Medallón para múltiples fuentes"
+        StartAt: ProcessSources
+        States:
+          ProcessSources:
+            Type: Map
+            ItemsPath: "$.sources"
+            Parameters:
+              "source.$": "$$.Map.Item.Value"
+            ResultPath: "$.ProcessingResults"
+            End: true
+            ItemProcessor:
+              ProcessorConfig:
+                Mode: INLINE
+              StartAt: Ingest
+              States:
+                Ingest:
+                  Type: Task
+                  Resource: !GetAtt ComplianceIngestFunction.Arn
+                  Next: Transform
+                Transform:
+                  Type: Task
+                  Resource: !GetAtt ComplianceTransformFunction.Arn
+                  Next: Load
+                Load:
+                  Type: Task
+                  Resource: !GetAtt ComplianceLoadFunction.Arn
+                  End: true
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ComplianceIngestFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ComplianceTransformFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ComplianceLoadFunction
+      Events:
+        DailyRun:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 6 * * ? *)
+            Name: reinesdev-compliance-cron-prd
+            Description: "Ejecución diaria de fuentes"
+            Input: '{"sources": ["ofac", "onu", "sat69b", "fbi", "worldbank", "ue", "dea", "interpol", "fto", "contraloria", "iadb", "pep"]}'
+
+  ComplianceApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: reinesdev-compliance-api-prd
+      StageName: prod
+      Auth:
+        ApiKeyRequired: false # Desactivado para facilitar acceso a Swagger /docs
+
+  ComplianceUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ComplianceApiprodStage
+    Properties:
+      UsagePlanName: reinesdev-compliance-plan-prd
+      Quota:
+        Limit: 500
+        Period: MONTH
+      ApiStages:
+        - ApiId: !Ref ComplianceApi
+          Stage: prod
+
+Outputs:
+  ApiUrl:
+    Description: "URL del API Gateway (FastAPI root)"
+    Value: !Sub "https://${ComplianceApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
+  EtlStateMachineArn:
+    Description: "ARN del Orquestador ETL (Step Function)"
+    Value: !Ref ComplianceStateMachine
