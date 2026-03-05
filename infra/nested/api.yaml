@@ -12,13 +12,11 @@ Resources:
   ComplianceApi:
     Type: AWS::Serverless::Api
     Properties:
-      Name: reinesdev-compliance-api-prd
       StageName: prod
 
   ComplianceSearchFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-compliance-search-func
       PackageType: Image
       ImageUri: !Ref ImageUri
       MemorySize: 1024
@@ -40,8 +38,8 @@ Resources:
 
   ComplianceUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ComplianceApi
     Properties:
-      UsagePlanName: reinesdev-compliance-plan-prd
       ApiStages:
         - ApiId: !Ref ComplianceApi
           Stage: prod

@@ -19,7 +19,6 @@ Resources:
   ComplianceStateMachine:
     Type: AWS::Serverless::StateMachine
     Properties:
-      Name: reinesdev-compliance-sm-prd
       Definition:
         Comment: "Orquestador ELT modular (Nested)"
         StartAt: ParallelExtraction
@@ -112,3 +111,8 @@ Resources:
                 - glue:StartCrawler
                 - glue:GetCrawler
               Resource: "*" 
+      Events:
+        DailyRun:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0 6 * * ? *)

@@ -9,6 +9,7 @@ Parameters:
     Type: String
 
 Resources:
+  # ---- Glue Catalog ----
   ComplianceDatabase:
     Type: AWS::Glue::Database
     Properties:
@@ -17,6 +18,7 @@ Resources:
         Name: "compliance_db"
         Description: "Data Catalog for Compliance Data Lake"
 
+  # ---- Capa de Transformación Gold Zone (Glue) ----
   TransformOfacGlueJob:
     Type: AWS::Glue::Job
     Properties:
