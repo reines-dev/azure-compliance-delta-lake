@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "ComplianceGuard - Root Stack (Nested Architecture)"
+
+Parameters:
+  ComplianceBucketName:
+    Type: String
+    Default: reinesdev-compliance-lake-prd
+  ImageUri:
+    Type: String
+    Description: "URI de la imagen Docker para la API (ECR)"
+
+Resources:
+  # CAPA 1: EXTRACTORES (Lambdas y Roles Base)
+  ExtractorsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/extractors.yaml
+      Parameters:
+        BucketName: !Ref ComplianceBucketName
+
+  # CAPA 2: ETL (Glue Jobs y Data Catalog)
+  EtlStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/etl.yaml
+      Parameters:
+        BucketName: !Ref ComplianceBucketName
+        GlueRoleArn: !GetAtt ExtractorsStack.Outputs.GlueExecutionRoleArn
+
+  # CAPA 3: ORQUESTACIÓN (Step Functions)
+  OrchestratorStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/orchestrator.yaml
+      Parameters:
+        # Jobs de Glue
+        OfacJob: !GetAtt EtlStack.Outputs.OfacGlueJobName
+        OnuJob: !GetAtt EtlStack.Outputs.OnuGlueJobName
+        SatJob: !GetAtt EtlStack.Outputs.SatGlueJobName
+        PepJob: !GetAtt EtlStack.Outputs.PepGlueJobName
+        OpenSanctionsJob: !GetAtt EtlStack.Outputs.OpenSanctionsGlueJobName
+        CrawlerName: !GetAtt EtlStack.Outputs.ComplianceCrawlerName
+        # ARNs de Lambdas
+        ExtractOfacArn: !GetAtt ExtractorsStack.Outputs.ExtractOfacArn
+        ExtractOnuArn: !GetAtt ExtractorsStack.Outputs.ExtractOnuArn
+        ExtractSatArn: !GetAtt ExtractorsStack.Outputs.ExtractSatArn
+        ExtractPepArn: !GetAtt ExtractorsStack.Outputs.ExtractPepArn
+        ExtractOpenSanctionsArn: !GetAtt ExtractorsStack.Outputs.ExtractOpenSanctionsArn
+
+  # CAPA 4: API (Consumo)
+  ApiStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: nested/api.yaml
+      Parameters:
+        BucketName: !Ref ComplianceBucketName
+        ImageUri: !Ref ImageUri
+
+Outputs:
+  ApiEndpoint:
+    Description: "URL base del API Gateway"
+    Value: !GetAtt ApiStack.Outputs.ApiUrl

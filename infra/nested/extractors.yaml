@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "Capa 1: Extractores (Lambdas)"
+
+Parameters:
+  BucketName:
+    Type: String
+
+Globals:
+  Function:
+    Timeout: 120
+    MemorySize: 256
+    Runtime: python3.12
+    CodeUri: ../../ # Referencia a la raíz desde infra/nested/
+    Environment:
+      Variables:
+        COMPLIANCE_LAKE_BUCKET: !Ref BucketName
+        LANDING_ZONE_PATH: !Sub s3://${BucketName}/landing/listas
+        OFAC_SDN_URL: "https://www.treasury.gov/ofac/downloads/sdn.csv"
+        OFAC_ALT_URL: "https://www.treasury.gov/ofac/downloads/add.csv"
+        SAT69B_URL: "http://omawww.sat.gob.mx/cifras_sat/Documents/ListadoGlobalDefinitivo.csv"
+        ONU_URL: "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
+        PEP_URL: "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
+        DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
+        DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
+
+Resources:
+  GlueExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: glue.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: S3DataLakeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
+                Resource: !Sub "arn:aws:s3:::${BucketName}/*"
+
+  ExtractOfacFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambdas.extractors.ofac_handler.ofac_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref BucketName }
+
+  ExtractOnuFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambdas.extractors.onu_handler.onu_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref BucketName }
+
+  ExtractSatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambdas.extractors.sat_handler.sat69b_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref BucketName }
+
+  ExtractPepFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambdas.extractors.pep_handler.socrata_pep_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref BucketName }
+
+  ExtractOpenSanctionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambdas.extractors.opensanctions_handler.opensanctions_proxy_handler
+      Policies:
+        - S3CrudPolicy: { BucketName: !Ref BucketName }
+
+Outputs:
+  GlueExecutionRoleArn:
+    Value: !GetAtt GlueExecutionRole.Arn
+  ExtractOfacArn:
+    Value: !GetAtt ExtractOfacFunction.Arn
+  ExtractOnuArn:
+    Value: !GetAtt ExtractOnuFunction.Arn
+  ExtractSatArn:
+    Value: !GetAtt ExtractSatFunction.Arn
+  ExtractPepArn:
+    Value: !GetAtt ExtractPepFunction.Arn
+  ExtractOpenSanctionsArn:
+    Value: !GetAtt ExtractOpenSanctionsFunction.Arn

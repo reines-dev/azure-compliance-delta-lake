@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "Capa 4: API de Consumo"
+
+Parameters:
+  BucketName:
+    Type: String
+  ImageUri:
+    Type: String
+
+Resources:
+  ComplianceApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: reinesdev-compliance-api-prd
+      StageName: prod
+
+  ComplianceSearchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: reinesdev-compliance-search-func
+      PackageType: Image
+      ImageUri: !Ref ImageUri
+      MemorySize: 1024
+      Timeout: 30
+      Environment:
+        Variables:
+          COMPLIANCE_LAKE_BUCKET: !Ref BucketName
+          GOLD_ZONE_PATH: !Sub s3://${BucketName}/gold/listas
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref BucketName
+      Events:
+        CheckNameApi:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: any
+            RestApiId: !Ref ComplianceApi
+
+  ComplianceUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      UsagePlanName: reinesdev-compliance-plan-prd
+      ApiStages:
+        - ApiId: !Ref ComplianceApi
+          Stage: prod
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${ComplianceApi}.execute-api.${AWS::Region}.amazonaws.com/prod"

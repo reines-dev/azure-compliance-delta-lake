@@ -1,0 +1,114 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "Capa 3: Orquestación (Step Functions)"
+
+Parameters:
+  OfacJob: { Type: String }
+  OnuJob: { Type: String }
+  SatJob: { Type: String }
+  PepJob: { Type: String }
+  OpenSanctionsJob: { Type: String }
+  CrawlerName: { Type: String }
+  ExtractOfacArn: { Type: String }
+  ExtractOnuArn: { Type: String }
+  ExtractSatArn: { Type: String }
+  ExtractPepArn: { Type: String }
+  ExtractOpenSanctionsArn: { Type: String }
+
+Resources:
+  ComplianceStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: reinesdev-compliance-sm-prd
+      Definition:
+        Comment: "Orquestador ELT modular (Nested)"
+        StartAt: ParallelExtraction
+        States:
+          ParallelExtraction:
+            Type: Parallel
+            Next: RunCrawler
+            Branches:
+              - StartAt: ExtractOFAC
+                States:
+                  ExtractOFAC:
+                    Type: Task
+                    Resource: !Ref ExtractOfacArn
+                    Next: TransformOFAC
+                  TransformOFAC:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref OfacJob
+                    End: true
+              - StartAt: ExtractONU
+                States:
+                  ExtractONU:
+                    Type: Task
+                    Resource: !Ref ExtractOnuArn
+                    Next: TransformONU
+                  TransformONU:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref OnuJob
+                    End: true
+              - StartAt: ExtractSAT
+                States:
+                  ExtractSAT:
+                    Type: Task
+                    Resource: !Ref ExtractSatArn
+                    Next: TransformSAT
+                  TransformSAT:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref SatJob
+                    End: true
+              - StartAt: ExtractPEP
+                States:
+                  ExtractPEP:
+                    Type: Task
+                    Resource: !Ref ExtractPepArn
+                    Next: TransformPEP
+                  TransformPEP:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref PepJob
+                    End: true
+              - StartAt: ExtractOpenSanctions
+                States:
+                  ExtractOpenSanctions:
+                    Type: Task
+                    Resource: !Ref ExtractOpenSanctionsArn
+                    Parameters:
+                      "source_id": "fbi_wanted"
+                    Next: TransformOpenSanctions
+                  TransformOpenSanctions:
+                    Type: Task
+                    Resource: arn:aws:states:::glue:startJobRun.sync
+                    Parameters:
+                      JobName: !Ref OpenSanctionsJob
+                      Arguments:
+                        "--OPENSANCTIONS_SOURCE_ID": "fbi_wanted"
+                    End: true
+          RunCrawler:
+            Type: Task
+            Resource: arn:aws:states:::aws-sdk:glue:startCrawler
+            Parameters:
+              Name: !Ref CrawlerName
+            End: true
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: ["lambda:InvokeFunction"]
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - glue:StartJobRun
+                - glue:GetJobRun
+                - glue:GetJobRuns
+                - glue:BatchStopJobRun
+                - glue:StartCrawler
+                - glue:GetCrawler
+              Resource: "*" 
