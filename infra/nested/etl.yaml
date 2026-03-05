@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "Capa 2: ETL (AWS Glue)"
+
+Parameters:
+  BucketName:
+    Type: String
+  GlueRoleArn:
+    Type: String
+
+Resources:
+  ComplianceDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: "compliance_db"
+        Description: "Data Catalog for Compliance Data Lake"
+
+  TransformOfacGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !Ref GlueRoleArn
+      Command:
+        Name: "glueetl"
+        ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_ofac.py"
+        PythonVersion: "3"
+      GlueVersion: "4.0"
+      WorkerType: "G.1X"
+      NumberOfWorkers: 2
+      MaxRetries: 0
+      Timeout: 60
+
+  TransformOnuGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !Ref GlueRoleArn
+      Command:
+        Name: "glueetl"
+        ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_onu.py"
+        PythonVersion: "3"
+      GlueVersion: "4.0"
+      WorkerType: "G.1X"
+      NumberOfWorkers: 2
+      MaxRetries: 0
+      Timeout: 60
+
+  TransformSatGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !Ref GlueRoleArn
+      Command:
+        Name: "glueetl"
+        ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_sat.py"
+        PythonVersion: "3"
+      GlueVersion: "4.0"
+      WorkerType: "G.1X"
+      NumberOfWorkers: 2
+      MaxRetries: 0
+      Timeout: 60
+
+  TransformPepGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !Ref GlueRoleArn
+      Command:
+        Name: "glueetl"
+        ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_pep.py"
+        PythonVersion: "3"
+      GlueVersion: "4.0"
+      WorkerType: "G.1X"
+      NumberOfWorkers: 2
+      MaxRetries: 0
+      Timeout: 60
+
+  TransformOpenSanctionsGlueJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Role: !Ref GlueRoleArn
+      Command:
+        Name: "glueetl"
+        ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_opensanctions.py"
+        PythonVersion: "3"
+      GlueVersion: "4.0"
+      WorkerType: "G.1X"
+      NumberOfWorkers: 2
+      MaxRetries: 0
+      Timeout: 60
+
+  ComplianceCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role: !Ref GlueRoleArn
+      DatabaseName: !Ref ComplianceDatabase
+      Targets:
+        S3Targets:
+          - Path: !Sub "s3://${BucketName}/gold/listas/"
+      TablePrefix: "gold_"
+      SchemaChangePolicy:
+        UpdateBehavior: "UPDATE_IN_DATABASE"
+        DeleteBehavior: "DEPRECATE_IN_DATABASE"
+
+Outputs:
+  OfacGlueJobName:
+    Value: !Ref TransformOfacGlueJob
+  OnuGlueJobName:
+    Value: !Ref TransformOnuGlueJob
+  SatGlueJobName:
+    Value: !Ref TransformSatGlueJob
+  PepGlueJobName:
+    Value: !Ref TransformPepGlueJob
+  OpenSanctionsGlueJobName:
+    Value: !Ref TransformOpenSanctionsGlueJob
+  ComplianceCrawlerName:
+    Value: !Ref ComplianceCrawler

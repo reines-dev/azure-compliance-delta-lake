@@ -1,17 +1,17 @@
-name: Deploy ComplianceGuard to AWS (ELT)
+name: Deploy ComplianceGuard to AWS (Nested CloudFormation)
 
 on:
   push:
     branches:
       - main
       - feature/initial-setup
-  workflow_dispatch: # Permite ejecución manual desde GitHub UI
+  workflow_dispatch:
 
 env:
-  STACK_NAME: reinesdev-compliance-prd
   REGION: us-east-1
-  LAKE_BUCKET_NAME: reinesdev-compliance-lake-prd
   SAM_BUCKET: hreines-sam-deploy
+  BASE_STACK: reinesdev-compliance
+  LAKE_BUCKET: reinesdev-compliance-lake-prd
 
 jobs:
   enforce-policy:
@@ -28,44 +28,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Buscar el PR asociado a este commit de push
           PR_DATA=$(gh pr list --state merged --limit 1 --json number,reviewDecision,baseRefName --search "${{ github.sha }}")
           
           if [ -z "$PR_DATA" ] || [ "$PR_DATA" == "[]" ]; then
-            echo "⚠️ WARNING: No se pudo verificar el PR asociado. Continuando con el despliegue en 'main' por política de emergencia."
+            echo "⚠️ WARNING: No se pudo verificar el PR asociado. Continuando por política de emergencia."
           else
             DECISION=$(echo $PR_DATA | jq -r '.[0].reviewDecision')
-            BASE=$(echo $PR_DATA | jq -r '.[0].baseRefName')
-            
             if [ "$DECISION" != "APPROVED" ]; then
               echo "❌ ERROR: El Pull Request asociado no ha sido APROBADO."
               exit 1
             fi
-            echo "✅ Política verificada: Cambio originado en un PR aprobado hacia $BASE."
+            echo "✅ Política verificada."
           fi
 
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  deploy:
+    name: 🚀 Atomic Deployment
+    needs: [enforce-policy]
     if: |
-      github.event_name == 'workflow_dispatch' || 
-      github.ref == 'refs/heads/feature/initial-setup' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    
+      always() && 
+      (needs.enforce-policy.result == 'success' || github.ref != 'refs/heads/main')
+    runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-          
-      - name: 🛠️ Set up AWS SAM CLI
-        uses: aws-actions/setup-sam@v2
-        with:
-          use-installer: true
 
       - name: ☁️ Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -74,22 +59,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.REGION }}
 
-      - name: 🏗️ Build Serverless Application
-        run: |
-          sam build --template template.yaml
+      - name: 🔑 Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: 🚀 Deploy Serverless Application
-        env:
-          DOCKER_CLIENT_TIMEOUT: "300"
-          COMPOSE_HTTP_TIMEOUT: "300"
-          DOCKER_TIMEOUT: "600"
-          AWS_MAX_ATTEMPTS: "10"
+      - name: 📤 Sync AWS Glue Scripts
         run: |
-          sam deploy \
-            --stack-name ${{ env.STACK_NAME }} \
-            --region ${{ env.REGION }} \
+          aws s3 sync glue/jobs/ s3://${{ env.LAKE_BUCKET }}/system/glue_jobs/ --exclude "*" --include "*.py"
+
+      - name: 🐳 Build, Push & Package
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.registry }}
+          ECR_REPOSITORY: reinesdev-compliance-api-repo
+          IMAGE_TAG: latest
+        run: |
+          # 1. Build & Push Docker Image (Capa 4)
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker build -t $IMAGE_URI -f api/Dockerfile.aws .
+          docker push $IMAGE_URI
+          
+          # 2. CloudFormation Package (Capa 1, 2, 3)
+          # Esto sube los templates de infra/nested/ y el código de lambdas/ a S3
+          aws cloudformation package \
+            --template-file infra/root-template.yaml \
             --s3-bucket ${{ env.SAM_BUCKET }} \
+            --output-template-file packaged-root.yaml
+
+          # 3. Deploy Root Stack
+          aws cloudformation deploy \
+            --template-file packaged-root.yaml \
+            --stack-name ${{ env.BASE_STACK }}-root \
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-            --no-confirm-changeset \
-            --resolve-image-repos \
-            --debug
+            --no-fail-on-empty-changeset \
+            --parameter-overrides ImageUri=$IMAGE_URI
