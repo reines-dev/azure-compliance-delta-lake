@@ -12,7 +12,8 @@
                 "ecr:*",
                 "apigateway:*",
                 "states:*",
-                "events:*"
+                "events:*",
+                "glue:*"
             ],
             "Resource": "*"
         }
