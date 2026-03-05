@@ -25,6 +25,7 @@ Globals:
         DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
         DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
 
+Resources:
   # ---- IAM Roles ----
   GlueExecutionRole:
     Type: AWS::IAM::Role
@@ -118,7 +119,10 @@ Globals:
     Type: AWS::Glue::Job
     Properties:
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_ofac.py", PythonVersion: '3' }
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_ofac.py"
+        PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -129,7 +133,10 @@ Globals:
     Type: AWS::Glue::Job
     Properties:
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_onu.py", PythonVersion: '3' }
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_onu.py"
+        PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -140,7 +147,10 @@ Globals:
     Type: AWS::Glue::Job
     Properties:
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_sat.py", PythonVersion: '3' }
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_sat.py"
+        PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -151,7 +161,10 @@ Globals:
     Type: AWS::Glue::Job
     Properties:
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_pep.py", PythonVersion: '3' }
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_pep.py"
+        PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -162,7 +175,10 @@ Globals:
     Type: AWS::Glue::Job
     Properties:
       Role: !GetAtt GlueExecutionRole.Arn
-      Command: { Name: glueetl, ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_opensanctions.py", PythonVersion: '3' }
+      Command:
+        Name: glueetl
+        ScriptLocation: !Sub "s3://${ComplianceBucketName}/system/glue_jobs/glue_opensanctions.py"
+        PythonVersion: '3'
       ExecutionClass: FLEX
       GlueVersion: '4.0'
       WorkerType: G.1X
@@ -173,6 +189,7 @@ Globals:
   ComplianceDatabase:
     Type: AWS::Glue::Database
     Properties:
+      CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: compliance_db
         Description: "Data Catalog for Compliance Data Lake"

@@ -3,7 +3,8 @@ name: Deploy ComplianceGuard to AWS (ELT)
 on:
   push:
     branches:
-      - main # O la rama que prefieras (ej: develop)
+      - main
+      - feature/initial-setup
   workflow_dispatch: # Permite ejecución manual desde GitHub UI
 
 env:
@@ -13,8 +14,39 @@ env:
   SAM_BUCKET: hreines-sam-deploy
 
 jobs:
+  enforce-policy:
+    name: 🛡️ Enforce PR Policy
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: 🔍 Check for Approved PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Buscar el PR asociado a este commit de push
+          PR_DATA=$(gh pr list --state merged --limit 1 --json number,reviewDecision,baseRefName --search "${{ github.sha }}")
+          
+          if [ -z "$PR_DATA" ] || [ "$PR_DATA" == "[]" ]; then
+            echo "❌ ERROR: Push directo a 'main' detectado. Los cambios DEBEN pasar por un Pull Request."
+            exit 1
+          fi
+          
+          DECISION=$(echo $PR_DATA | jq -r '.[0].reviewDecision')
+          BASE=$(echo $PR_DATA | jq -r '.[0].baseRefName')
+          
+          if [ "$DECISION" != "APPROVED" ]; then
+            echo "❌ ERROR: El Pull Request asociado no ha sido APROBADO."
+            exit 1
+          fi
+          
+          echo "✅ Política verificada: Cambio originado en un PR aprobado hacia $BASE."
+
   build-and-deploy:
-    runs-on: ubuntu-latest # Los runners de Ubuntu traen Docker pre-instalado
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      github.ref == 'refs/heads/feature/initial-setup' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
     
     steps:
       - name: 📥 Checkout repository
