@@ -3,7 +3,8 @@ name: Deploy ComplianceGuard to AWS (ELT)
 on:
   push:
     branches:
-      - main # O la rama que prefieras (ej: develop)
+      - main
+      - feature/initial-setup
   workflow_dispatch: # Permite ejecución manual desde GitHub UI
 
 env:
