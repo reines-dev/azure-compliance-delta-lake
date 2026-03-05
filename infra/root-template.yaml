@@ -1,6 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
-Description: "ComplianceGuard - Root Stack (Nested Architecture)"
+Description: "ComplianceGuard - Root Stack (Pure CloudFormation Orchestrator)"
 
 Parameters:
   ComplianceBucketName:
@@ -11,7 +10,7 @@ Parameters:
     Description: "URI de la imagen Docker para la API (ECR)"
 
 Resources:
-  # CAPA 1: EXTRACTORES (Lambdas y Roles Base)
+  # CAPA 1: EXTRACTORES
   ExtractorsStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -19,7 +18,7 @@ Resources:
       Parameters:
         BucketName: !Ref ComplianceBucketName
 
-  # CAPA 2: ETL (Glue Jobs y Data Catalog)
+  # CAPA 2: ETL (Depende de Capa 1)
   EtlStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -28,27 +27,25 @@ Resources:
         BucketName: !Ref ComplianceBucketName
         GlueRoleArn: !GetAtt ExtractorsStack.Outputs.GlueExecutionRoleArn
 
-  # CAPA 3: ORQUESTACIÓN (Step Functions)
+  # CAPA 3: ORQUESTACIÓN (Depende de Capa 1 y 2)
   OrchestratorStack:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: nested/orchestrator.yaml
       Parameters:
-        # Jobs de Glue
         OfacJob: !GetAtt EtlStack.Outputs.OfacGlueJobName
         OnuJob: !GetAtt EtlStack.Outputs.OnuGlueJobName
         SatJob: !GetAtt EtlStack.Outputs.SatGlueJobName
         PepJob: !GetAtt EtlStack.Outputs.PepGlueJobName
         OpenSanctionsJob: !GetAtt EtlStack.Outputs.OpenSanctionsGlueJobName
         CrawlerName: !GetAtt EtlStack.Outputs.ComplianceCrawlerName
-        # ARNs de Lambdas
         ExtractOfacArn: !GetAtt ExtractorsStack.Outputs.ExtractOfacArn
         ExtractOnuArn: !GetAtt ExtractorsStack.Outputs.ExtractOnuArn
         ExtractSatArn: !GetAtt ExtractorsStack.Outputs.ExtractSatArn
         ExtractPepArn: !GetAtt ExtractorsStack.Outputs.ExtractPepArn
         ExtractOpenSanctionsArn: !GetAtt ExtractorsStack.Outputs.ExtractOpenSanctionsArn
 
-  # CAPA 4: API (Consumo)
+  # CAPA 4: API
   ApiStack:
     Type: AWS::CloudFormation::Stack
     Properties:
