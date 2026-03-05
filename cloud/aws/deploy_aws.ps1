@@ -1,10 +1,10 @@
 # ComplianceGuard MCP - AWS Deployment Script (ELT Architecture)
-# Este script sube los jobs de AWS Glue y despliega la infraestructura en AWS.
+# Este script activa el entorno virtual, sube los jobs de AWS Glue y despliega la infraestructura.
 
 $STACK_NAME = "reinesdev-compliance-prd"
 $REGION = "us-east-1"
 $LAKE_BUCKET_NAME = "reinesdev-compliance-lake-prd"
-$SAM_BUCKET = "hreines-sam-deploy" # Bucket para los assets de CloudFormation
+$SAM_BUCKET = "hreines-sam-deploy"
 
 # Asegurar que estamos en la raíz del proyecto
 $SCRIPT_PATH = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -13,6 +13,17 @@ Set-Location $ROOT_DIR.FullName
 
 Write-Host "--- Iniciando Despliegue de ComplianceGuard ELT ---" -ForegroundColor Cyan
 Write-Host "Directorio de trabajo: $((Get-Location).Path)"
+
+# 0. Activar entorno virtual local (.venv)
+if (Test-Path ".venv\Scripts\Activate.ps1") {
+    Write-Host "[0/3] Activando entorno virtual (.venv)..." -ForegroundColor Gray
+    & .venv\Scripts\Activate.ps1
+} elseif (Test-Path ".venv\bin\activate.ps1") {
+    Write-Host "[0/3] Activando entorno virtual (.venv)..." -ForegroundColor Gray
+    & .venv\bin\activate.ps1
+} else {
+    Write-Host "ADVERTENCIA: No se encontró .venv. Se usará el Python del sistema." -ForegroundColor Yellow
+}
 
 # 1. Sincronizar scripts de PySpark hacia la zona de sistema del Data Lake
 Write-Host "[1/3] Sincronizando scripts PySpark (AWS Glue) hacia S3..."
@@ -44,7 +55,6 @@ sam deploy `
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "--- Despliegue ELT Completado Exitosamente ---" -ForegroundColor Green
-    # Usando cmd /c para llamar a aws y evitar problemas de parsing de PS en la captura de salida si falla
     $API_URL = aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text --no-cli-pager
     Write-Host "API Gateway (FastAPI) URL: $API_URL" -ForegroundColor Yellow
     Write-Host "Nota: AWS Step Functions y Glue están listos para orquestar la ingesta en S3." -ForegroundColor Yellow
