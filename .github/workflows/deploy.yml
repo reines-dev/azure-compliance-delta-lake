@@ -50,6 +50,8 @@ jobs:
         env:
           DOCKER_CLIENT_TIMEOUT: "300"
           COMPOSE_HTTP_TIMEOUT: "300"
+          DOCKER_TIMEOUT: "600"
+          AWS_MAX_ATTEMPTS: "10"
         run: |
           sam deploy \
             --stack-name ${{ env.STACK_NAME }} \
@@ -57,4 +59,5 @@ jobs:
             --s3-bucket ${{ env.SAM_BUCKET }} \
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --no-confirm-changeset \
-            --resolve-image-repos
+            --resolve-image-repos \
+            --debug
