@@ -44,7 +44,7 @@ jobs:
       - name: 🏗️ Build Serverless Application
         run: |
           # SAM build detectará Docker automáticamente en github runners
-          sam build --template template.yaml --use-container
+          sam build --template template.yaml
 
       - name: 🚀 Deploy Serverless Application
         env:
