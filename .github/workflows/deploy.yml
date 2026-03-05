@@ -52,6 +52,11 @@ jobs:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: ☁️ Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -69,17 +74,25 @@ jobs:
 
       - name: 🐳 Build, Push & Package
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.registry }}
           ECR_REPOSITORY: reinesdev-compliance-api-repo
           IMAGE_TAG: latest
         run: |
-          # 1. Build & Push Docker Image (Capa 4)
+          # Capturar el registro del output del paso anterior
+          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
+          
+          if [ -z "$ECR_REGISTRY" ]; then
+            echo "❌ ERROR: No se pudo obtener el ECR Registry del paso de login."
+            exit 1
+          fi
+
           IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "🚀 Building image: $IMAGE_URI"
+
+          # 1. Build & Push Docker Image (Capa 4)
           docker build -t $IMAGE_URI -f api/Dockerfile.aws .
           docker push $IMAGE_URI
           
           # 2. CloudFormation Package (Capa 1, 2, 3)
-          # Esto sube los templates de infra/nested/ y el código de lambdas/ a S3
           aws cloudformation package \
             --template-file infra/root-template.yaml \
             --s3-bucket ${{ env.SAM_BUCKET }} \
