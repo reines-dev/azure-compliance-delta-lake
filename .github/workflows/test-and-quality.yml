@@ -21,17 +21,17 @@ jobs:
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r api/requirements.txt
+          pip install -r src/api/requirements.txt
           pip install -r lambdas/requirements-aws.txt
           pip install -r requirements-test.txt
-          pip install -e . || true
+          pip install -e .
 
       - name: 🏃 Run tests with coverage
         run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           # Falla si la cobertura es < 80%
           pytest tests/unit/ \
             --cov=src \
             --cov=lambdas \
-            --cov=api \
             --cov-report=term-missing \
             --cov-fail-under=80

@@ -1,20 +1,12 @@
 name: 🚀 Deploy to Production
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
-
-env:
-  REGION: us-east-1
-  SAM_BUCKET: hreines-sam-deploy
-  BASE_STACK: reinesdev-compliance
-  LAKE_BUCKET: reinesdev-compliance-lake-prd
 
 jobs:
   unit-tests:
     name: 🧪 Unit Tests & Coverage
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout repository
@@ -31,10 +23,11 @@ jobs:
           pip install -r src/api/requirements.txt
           pip install -r lambdas/requirements-aws.txt
           pip install -r requirements-test.txt
-          pip install -e . || true
+          pip install -e .
 
       - name: 🏃 Run tests with coverage
         run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
           # Falla si la cobertura es < 80%
           pytest tests/unit/ \
             --cov=src \

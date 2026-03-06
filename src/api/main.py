@@ -19,7 +19,7 @@ app = FastAPI(
     
     Esta API permite realizar búsquedas inteligentes sobre múltiples listas de control.
     """,
-    version="1.0.0",
+    version="1.1.0",
     openapi_tags=[
         {"name": "Search", "description": "Búsqueda Fuzzy Match"},
         {"name": "System", "description": "Salud del servicio"}
@@ -47,4 +47,4 @@ app.include_router(etl.router, include_in_schema=False)
 
 @app.get("/health", tags=["System"])
 async def health_check():
-    return {"status": "healthy", "engine": "FastAPI", "version": "1.0.0"}
+    return {"status": "healthy", "engine": "FastAPI", "version": "1.1.0"}

@@ -7,14 +7,13 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-s3 = boto3.client('s3')
-http = urllib3.PoolManager()
-
 def onu_handler(event, context):
     """
     Lightweight Lambda function to download ONU Consolidated list and save to S3 Landing Zone.
     Executed by Step Functions. Requires 256MB RAM.
     """
+    s3 = boto3.client('s3')
+    http = urllib3.PoolManager()
     try:
         bucket = os.environ['COMPLIANCE_LAKE_BUCKET']
         landing_prefix = "landing/listas/onu"
