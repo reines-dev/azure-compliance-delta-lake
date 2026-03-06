@@ -14,6 +14,7 @@ def ofac_handler(event, context):
     Executed by Step Functions. Requires 256MB RAM.
     """
     s3 = boto3.client('s3')
+    http = urllib3.PoolManager()
     try:
         # 1. Configuration
         bucket = os.environ['COMPLIANCE_LAKE_BUCKET']

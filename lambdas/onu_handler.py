@@ -13,6 +13,7 @@ def onu_handler(event, context):
     Executed by Step Functions. Requires 256MB RAM.
     """
     s3 = boto3.client('s3')
+    http = urllib3.PoolManager()
     try:
         bucket = os.environ['COMPLIANCE_LAKE_BUCKET']
         landing_prefix = "landing/listas/onu"

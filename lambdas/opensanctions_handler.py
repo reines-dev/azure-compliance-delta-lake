@@ -15,6 +15,7 @@ def opensanctions_proxy_handler(event, context):
     Executed by Step Functions. Requires 256MB RAM.
     """
     s3 = boto3.client('s3')
+    http = urllib3.PoolManager()
     try:
         source_id = event.get('source_id', 'every-politician') # Default if not passed
         
