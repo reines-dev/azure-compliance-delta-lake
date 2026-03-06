@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "listas-control"
+version = "1.0.0"
+description = "Plataforma de Cumplimiento Guard para validación de listas de control"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pandas",
+    "awswrangler",
+    "boto3",
+    "rapidfuzz"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "lambdas*", "api*"]
