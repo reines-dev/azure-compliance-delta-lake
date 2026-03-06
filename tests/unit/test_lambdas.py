@@ -10,8 +10,17 @@ from lambdas.sat_handler import sat69b_handler
 from lambdas.pep_handler import socrata_pep_handler
 from lambdas.opensanctions_handler import opensanctions_proxy_handler
 
+@pytest.fixture(autouse=True)
+def aws_credentials():
+    """Mocked AWS Credentials for moto."""
+    os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+    os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+    os.environ["AWS_SECURITY_TOKEN"] = "testing"
+    os.environ["AWS_SESSION_TOKEN"] = "testing"
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+
 @pytest.fixture
-def mock_s3_env():
+def mock_s3_env(aws_credentials):
     with mock_aws():
         os.environ['COMPLIANCE_LAKE_BUCKET'] = 'test-bucket'
         s3 = boto3.client('s3', region_name='us-east-1')
