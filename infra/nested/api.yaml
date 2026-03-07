@@ -43,7 +43,7 @@ Resources:
 
   ComplianceUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
-    DependsOn: ComplianceApi
+    DependsOn: ComplianceApiProdStage
     Properties:
       UsagePlanName: "ComplianceGuard-Standard-Plan"
       Description: "Plan de uso estándar para consulta de listas"
