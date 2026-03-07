@@ -2,9 +2,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: "ComplianceGuard - Root Stack (Pure CloudFormation Orchestrator)"
 
 Parameters:
-  ComplianceBucketName:
+  FoundationStackName:
     Type: String
-    Default: reinesdev-compliance-lake-prd
+    Default: reinesdev-compliance-foundation
   ImageUri:
     Type: String
     Description: "URI de la imagen Docker para la API (ECR)"
@@ -16,7 +16,8 @@ Resources:
     Properties:
       TemplateURL: nested/extractors.yaml
       Parameters:
-        BucketName: !Ref ComplianceBucketName
+        BucketName: !ImportValue 
+          Fn::Sub: "${FoundationStackName}-BucketName"
 
   # CAPA 2: ETL (Depende de Capa 1)
   EtlStack:
@@ -24,8 +25,12 @@ Resources:
     Properties:
       TemplateURL: nested/etl.yaml
       Parameters:
-        BucketName: !Ref ComplianceBucketName
-        GlueRoleArn: !GetAtt ExtractorsStack.Outputs.GlueExecutionRoleArn
+        BucketName: !ImportValue 
+          Fn::Sub: "${FoundationStackName}-BucketName"
+        GlueRoleArn: !ImportValue
+          Fn::Sub: "${FoundationStackName}-GlueRoleArn"
+        DatabaseName: !ImportValue
+          Fn::Sub: "${FoundationStackName}-GlueDatabaseName"
 
   # CAPA 3: ORQUESTACIÓN (Depende de Capa 1 y 2)
   OrchestratorStack:
@@ -51,7 +56,8 @@ Resources:
     Properties:
       TemplateURL: nested/api.yaml
       Parameters:
-        BucketName: !Ref ComplianceBucketName
+        BucketName: !ImportValue 
+          Fn::Sub: "${FoundationStackName}-BucketName"
         ImageUri: !Ref ImageUri
 
 Outputs:

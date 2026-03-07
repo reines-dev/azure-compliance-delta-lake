@@ -28,7 +28,11 @@ logger.info(f"Reading raw SAT 69B data from {sat_landing_path}")
 
 try:
     # 2. Extract Data (SAT CSV Format)
-    raw_df = spark.read.option("header", "true").option("encoding", "latin1").csv(sat_landing_path)
+    # El archivo del SAT tiene 2 líneas de información antes de los encabezados reales
+    raw_df = spark.read.option("header", "true") \
+        .option("encoding", "latin1") \
+        .option("skipRows", 2) \
+        .csv(sat_landing_path)
 
     def clean_string(name):
         if not name:

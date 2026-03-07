@@ -7,16 +7,10 @@ Parameters:
     Type: String
   GlueRoleArn:
     Type: String
+  DatabaseName:
+    Type: String
 
 Resources:
-  ComplianceDatabase:
-    Type: AWS::Glue::Database
-    Properties:
-      CatalogId: !Ref AWS::AccountId
-      DatabaseInput:
-        Name: "compliance_db"
-        Description: "Data Catalog for Compliance Data Lake"
-
   TransformOfacGlueJob:
     Type: AWS::Glue::Job
     Properties:
@@ -45,6 +39,7 @@ Resources:
       DefaultArguments:
         "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
         "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
+        "--extra-jars": "https://repo1.maven.org/maven2/com/databricks/spark-xml_2.12/0.17.0/spark-xml_2.12-0.17.0.jar"
       GlueVersion: "4.0"
       WorkerType: "G.1X"
       NumberOfWorkers: 2
@@ -106,7 +101,7 @@ Resources:
     Type: AWS::Glue::Crawler
     Properties:
       Role: !Ref GlueRoleArn
-      DatabaseName: !Ref ComplianceDatabase
+      DatabaseName: !Ref DatabaseName
       Targets:
         S3Targets:
           - Path: !Sub "s3://${BucketName}/gold/listas/"

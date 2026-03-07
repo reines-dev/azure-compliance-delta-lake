@@ -82,7 +82,7 @@ Resources:
                     Type: Task
                     Resource: !Ref ExtractOpenSanctionsArn
                     Parameters:
-                      "source_id": "fbi_wanted"
+                      "source_id": "us_fbi_most_wanted"
                     Next: TransformOpenSanctions
                   TransformOpenSanctions:
                     Type: Task
@@ -90,7 +90,7 @@ Resources:
                     Parameters:
                       JobName: !Ref OpenSanctionsJob
                       Arguments:
-                        "--OPENSANCTIONS_SOURCE_ID": "fbi_wanted"
+                        "--OPENSANCTIONS_SOURCE_ID": "us_fbi_most_wanted"
                     End: true
           RunCrawler:
             Type: Task
