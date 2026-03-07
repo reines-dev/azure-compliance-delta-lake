@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "ComplianceGuard - Foundation Layer (Core Infrastructure)"
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: reinesdev-compliance
+  Environment:
+    Type: String
+    Default: prd
+
+Resources:
+  # 1. DATA LAKE STORAGE
+  ComplianceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${ProjectName}-lake-${Environment}"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  # 2. CONTAINER REGISTRY (API)
+  ApiRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ProjectName}-api-repo"
+      ImageScanningConfiguration:
+        ScanOnPush: true
+
+  # 3. GLUE METADATA CATALOG
+  ComplianceDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: "compliance_db"
+        Description: "Data Catalog for Compliance Data Lake"
+
+  # 4. SHARED IAM ROLES
+  GlueExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-glue-role-${Environment}"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: glue.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: S3DataLakeAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"]
+                Resource: 
+                  - !Sub "arn:aws:s3:::${ComplianceBucket}"
+                  - !Sub "arn:aws:s3:::${ComplianceBucket}/*"
+
+Outputs:
+  BucketName:
+    Value: !Ref ComplianceBucket
+    Export: { Name: !Sub "${AWS::StackName}-BucketName" }
+  EcrRepoUri:
+    Value: !GetAtt ApiRepository.RepositoryUri
+    Export: { Name: !Sub "${AWS::StackName}-EcrRepoUri" }
+  GlueDatabaseName:
+    Value: !Ref ComplianceDatabase
+    Export: { Name: !Sub "${AWS::StackName}-GlueDatabaseName" }
+  GlueRoleArn:
+    Value: !GetAtt GlueExecutionRole.Arn
+    Export: { Name: !Sub "${AWS::StackName}-GlueRoleArn" }

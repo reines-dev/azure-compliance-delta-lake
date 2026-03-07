@@ -1,28 +1,32 @@
 name: 🚀 Deploy to Production
 
 on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'lambdas/**'
+      - 'glue/**'
+      - 'infra/**'
   workflow_dispatch:
 
 env:
   REGION: us-east-1
-  SAM_BUCKET: hreines-sam-deploy
-  BASE_STACK: reinesdev-compliance
-  LAKE_BUCKET: reinesdev-compliance-lake-prd
+  SAM_BUCKET: ${{ secrets.SAM_DEPLOY_BUCKET || 'hreines-sam-deploy' }}
+  PROJECT_NAME: reinesdev-compliance
+  FOUNDATION_STACK: reinesdev-compliance-foundation
+  APP_STACK: reinesdev-compliance-root
 
 jobs:
   unit-tests:
-    name: 🧪 Unit Tests & Coverage
-    if: github.ref == 'refs/heads/main'
+    name: 🧪 Unit Tests
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: 🐍 Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
       - name: 📦 Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -30,25 +34,50 @@ jobs:
           pip install -r lambdas/requirements-aws.txt
           pip install -r requirements-test.txt
           pip install -e .
-
-      - name: 🏃 Run tests with coverage
+      - name: 🏃 Run tests
         run: |
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          # Falla si la cobertura es < 80%
-          pytest tests/unit/ \
-            --cov=src \
-            --cov=lambdas \
-            --cov-report=term-missing \
-            --cov-fail-under=80
+          pytest tests/unit/ --cov=src --cov=lambdas --cov-fail-under=80
 
-  deploy:
-    name: 🌐 Atomic Deployment
+  deploy-foundation:
+    name: 🧱 Deploy Foundation
     needs: [unit-tests]
     runs-on: ubuntu-latest
+    outputs:
+      bucket_name: ${{ steps.get-outputs.outputs.bucket_name }}
+      ecr_uri: ${{ steps.get-outputs.outputs.ecr_uri }}
     steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: ☁️ Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.REGION }}
 
+      - name: 🚀 Deploy Foundation Stack
+        uses: aws-actions/aws-cloudformation-github-deploy@v1
+        with:
+          name: ${{ env.FOUNDATION_STACK }}
+          template: infra/foundation.yaml
+          capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM
+          no-fail-on-empty-changeset: "1"
+          parameter-overrides: "ProjectName=${{ env.PROJECT_NAME }},Environment=prd"
+
+      - name: 📤 Get Foundation Outputs
+        id: get-outputs
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks --stack-name ${{ env.FOUNDATION_STACK }} --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' --output text)
+          ECR=$(aws cloudformation describe-stacks --stack-name ${{ env.FOUNDATION_STACK }} --query 'Stacks[0].Outputs[?OutputKey==`EcrRepoUri`].OutputValue' --output text)
+          echo "bucket_name=$BUCKET" >> $GITHUB_OUTPUT
+          echo "ecr_uri=$ECR" >> $GITHUB_OUTPUT
+
+  deploy-application:
+    name: 📱 Deploy Application
+    needs: [deploy-foundation]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: ☁️ Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -62,34 +91,36 @@ jobs:
 
       - name: 📤 Sync AWS Glue Scripts
         run: |
-          aws s3 sync glue/jobs/ s3://${{ env.LAKE_BUCKET }}/system/glue_jobs/ --exclude "*" --include "*.py"
+          aws s3 sync glue/jobs/ s3://${{ needs.deploy-foundation.outputs.bucket_name }}/system/glue_jobs/ --exclude "*" --include "*.py"
 
-      - name: 🏗️ Prepare Lambda Package
+      - name: 🏗️ Prepare & Package Lambdas
         run: |
           cp -r src/ lambdas/src/
+          cd lambdas
+          zip -r ../extractors.zip .
+          cd ..
 
-      - name: 🐳 Build, Push & Package
+      - name: 🐳 Build & Push API Image
         env:
-          ECR_REPOSITORY: reinesdev-compliance-api-repo
-          IMAGE_TAG: latest
+          ECR_URI: ${{ needs.deploy-foundation.outputs.ecr_uri }}
         run: |
-          ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          if [ -z "$ECR_REGISTRY" ]; then exit 1; fi
+          docker build -t $ECR_URI:latest -f src/api/Dockerfile.aws .
+          docker push $ECR_URI:latest
 
-          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "🚀 Building image: $IMAGE_URI"
-
-          docker build -t $IMAGE_URI -f src/api/Dockerfile.aws .
-          docker push $IMAGE_URI
-          
+      - name: 📦 Package CloudFormation
+        run: |
           aws cloudformation package \
             --template-file infra/root-template.yaml \
             --s3-bucket ${{ env.SAM_BUCKET }} \
             --output-template-file packaged-root.yaml
 
+      - name: 🚀 Deploy App Stack
+        run: |
           aws cloudformation deploy \
             --template-file packaged-root.yaml \
-            --stack-name ${{ env.BASE_STACK }}-root \
+            --stack-name ${{ env.APP_STACK }} \
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset \
-            --parameter-overrides ImageUri=$IMAGE_URI
+            --parameter-overrides \
+              FoundationStackName=${{ env.FOUNDATION_STACK }} \
+              ImageUri=${{ needs.deploy-foundation.outputs.ecr_uri }}:latest

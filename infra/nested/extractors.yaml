@@ -11,7 +11,7 @@ Globals:
     Timeout: 120
     MemorySize: 256
     Runtime: python3.12
-    CodeUri: ../../lambdas/ # El contenido de lambdas/ será la raíz del ZIP
+    CodeUri: ../../extractors.zip
     Environment:
       Variables:
         COMPLIANCE_LAKE_BUCKET: !Ref BucketName
@@ -25,30 +25,11 @@ Globals:
         DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
 
 Resources:
-  GlueExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal: { Service: glue.amazonaws.com }
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
-      Policies:
-        - PolicyName: S3DataLakeAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
-                Resource: !Sub "arn:aws:s3:::${BucketName}/*"
-
   ExtractOfacFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Handler: ofac_handler.ofac_handler # Estructura plana
+      Handler: ofac_handler.ofac_handler
+      CodeUri: ../../extractors.zip
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
@@ -56,6 +37,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: onu_handler.onu_handler
+      CodeUri: ../../extractors.zip
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
@@ -63,6 +45,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: sat_handler.sat69b_handler
+      CodeUri: ../../extractors.zip
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
@@ -70,6 +53,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: pep_handler.socrata_pep_handler
+      CodeUri: ../../extractors.zip
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
@@ -77,12 +61,11 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       Handler: opensanctions_handler.opensanctions_proxy_handler
+      CodeUri: ../../extractors.zip
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
 Outputs:
-  GlueExecutionRoleArn:
-    Value: !GetAtt GlueExecutionRole.Arn
   ExtractOfacArn:
     Value: !GetAtt ExtractOfacFunction.Arn
   ExtractOnuArn:

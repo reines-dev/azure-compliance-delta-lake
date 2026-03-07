@@ -35,6 +35,12 @@ Resources:
             Method: any
             RestApiId: !Ref ComplianceApi
 
+  ComplianceSearchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ComplianceSearchFunction}"
+      RetentionInDays: 7
+
   ComplianceUsagePlan:
     Type: AWS::ApiGateway::UsagePlan
     DependsOn: ComplianceApi
