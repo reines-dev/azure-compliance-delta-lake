@@ -3,6 +3,12 @@ name: 🚀 Deploy to Production
 on:
   workflow_dispatch:
 
+env:
+  REGION: us-east-1
+  SAM_BUCKET: hreines-sam-deploy
+  BASE_STACK: reinesdev-compliance
+  LAKE_BUCKET: reinesdev-compliance-lake-prd
+
 jobs:
   unit-tests:
     name: 🧪 Unit Tests & Coverage
