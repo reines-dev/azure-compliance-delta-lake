@@ -17,7 +17,7 @@ def opensanctions_proxy_handler(event, context):
     s3 = boto3.client('s3')
     http = urllib3.PoolManager()
     try:
-        source_id = event.get('source_id', 'every-politician') # Default if not passed
+        source_id = event.get('source_id', 'us_fbi_most_wanted') # Actualizado de fbi_wanted
         
         bucket = os.environ['COMPLIANCE_LAKE_BUCKET']
         landing_prefix = f"landing/listas/opensanctions/{source_id}"

@@ -25,6 +25,9 @@ Resources:
         Name: "glueetl"
         ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_ofac.py"
         PythonVersion: "3"
+      DefaultArguments:
+        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
       GlueVersion: "4.0"
       WorkerType: "G.1X"
       NumberOfWorkers: 2
@@ -39,6 +42,9 @@ Resources:
         Name: "glueetl"
         ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_onu.py"
         PythonVersion: "3"
+      DefaultArguments:
+        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
       GlueVersion: "4.0"
       WorkerType: "G.1X"
       NumberOfWorkers: 2
@@ -53,6 +59,9 @@ Resources:
         Name: "glueetl"
         ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_sat.py"
         PythonVersion: "3"
+      DefaultArguments:
+        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
       GlueVersion: "4.0"
       WorkerType: "G.1X"
       NumberOfWorkers: 2
@@ -67,6 +76,9 @@ Resources:
         Name: "glueetl"
         ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_pep.py"
         PythonVersion: "3"
+      DefaultArguments:
+        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
       GlueVersion: "4.0"
       WorkerType: "G.1X"
       NumberOfWorkers: 2
@@ -81,6 +93,9 @@ Resources:
         Name: "glueetl"
         ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_opensanctions.py"
         PythonVersion: "3"
+      DefaultArguments:
+        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
       GlueVersion: "4.0"
       WorkerType: "G.1X"
       NumberOfWorkers: 2
