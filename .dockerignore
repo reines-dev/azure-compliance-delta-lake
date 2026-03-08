@@ -1,0 +1,27 @@
+.venv/
+.git/
+.github/
+.pytest_cache/
+__pycache__/
+infra/
+glue/
+tests/
+tools/
+ui/
+docs/
+*.zip
+*.yaml
+*.md
+*.ps1
+.env
+.awsignore
+.webappignore
+docker/
+.aws-sam/
+build_dist/
+deploy_stage/
+
+# Permitir estos archivos para el contenedor de testing local
+!tests/
+!glue/jobs/
+!requirements-test.txt

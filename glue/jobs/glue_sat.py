@@ -99,7 +99,7 @@ try:
         lit("SAT69B_RESTRICTIVA").alias("tipo_lista"),
         date_format(current_date(), "yyyy-MM-dd").alias("fecha_carga"),
         lit("SAT69B").alias("fuente"),
-        concat_ws(" | Situación: ", col(col_situacion)).alias("metadata")
+        concat_ws(" | Situación: ", col(col_situacion_index)).alias("metadata")
     )
 
     transformed_df = transformed_df.fillna("-", subset=["identificacion", "tipo_entidad"])
