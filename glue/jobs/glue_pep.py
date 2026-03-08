@@ -40,21 +40,29 @@ try:
     clean_string_udf = udf(clean_string, StringType())
 
     # 3. Transform Socrata JSON
-    # El JSON de Socrata expone las columnas en primera capa 
-    # (identificacion, nombre, entidad, cargo)
+    # Socrata datos.gov.co PEP real schema:
+    # nombre_pep, numero_documento, descripcion_cargo, nombre_entidad, fecha_vinculacion, fecha_desvinculacion
     
-    # Manejar caso de esquemas variantes
-    if "nombre" in raw_df.columns and "identificacion" in raw_df.columns:
+    # Log columns available for debugging
+    logger.info(f"Columns in raw data: {raw_df.columns}")
+    
+    # Handle both potential schema variants (real API vs. legacy)
+    nombre_col = "nombre_pep" if "nombre_pep" in raw_df.columns else "nombre"
+    doc_col = "numero_documento" if "numero_documento" in raw_df.columns else "identificacion"
+    cargo_col = "descripcion_cargo" if "descripcion_cargo" in raw_df.columns else "cargo"
+    entidad_col = "nombre_entidad" if "nombre_entidad" in raw_df.columns else "entidad"
+    
+    if nombre_col in raw_df.columns and doc_col in raw_df.columns:
         transformed_df = raw_df.select(
-            md5(concat_ws("-", lit("PEP"), col("identificacion"))).alias("id_unico"),
-            col("nombre").alias("nombre_original"),
-            clean_string_udf(col("nombre")).alias("nombre_limpio"),
-            col("identificacion").alias("identificacion"),
-            col("entidad").alias("tipo_entidad"), # O usarlo como metadato
+            md5(concat_ws("-", lit("PEP"), col(doc_col))).alias("id_unico"),
+            col(nombre_col).alias("nombre_original"),
+            clean_string_udf(col(nombre_col)).alias("nombre_limpio"),
+            col(doc_col).alias("identificacion"),
+            col(entidad_col).alias("tipo_entidad"),
             lit("PEP_COLOMBIA").alias("tipo_lista"),
             date_format(current_date(), "yyyy-MM-dd").alias("fecha_carga"),
             lit("PEP").alias("fuente"),
-            concat_ws(" | Cargo: ", col("cargo"), col("entidad")).alias("metadata")
+            concat_ws(" | Cargo: ", col(cargo_col), col(entidad_col)).alias("metadata")
         )
         
         transformed_df = transformed_df.fillna("-", subset=["identificacion", "tipo_entidad"])
@@ -68,7 +76,7 @@ try:
             
         logger.info("Glue PEP ETL Job completed successfully.")
     else:
-         logger.warn("Empty or Invalid Socrata PEP JSON schema received.")
+         logger.warn(f"Empty or Invalid Socrata PEP JSON schema received. Found columns: {raw_df.columns}")
     
 except Exception as e:
     logger.error(f"Error processing Socrata PEP data: {str(e)}")
