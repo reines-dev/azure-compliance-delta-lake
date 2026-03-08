@@ -44,10 +44,16 @@ try:
     clean_string_udf = udf(clean_string, StringType())
 
     # 3. Transform SAT 69B
-    # Columnas principales en SAT suelen ser "RFC" y "Nombre del Contribuyente" "Situación del contribuyente"
-    col_rfc = [c for c in raw_df.columns if "RFC" in c.upper()][0]
-    col_nombre = [c for c in raw_df.columns if "NOMBRE" in c.upper()][0]
-    col_situacion = [c for c in raw_df.columns if "SITUAC" in c.upper()][0]
+    # Check what columns actually exist
+    columns = raw_df.columns
+    
+    col_rfc = next((c for c in columns if "RFC" in c.upper()), None)
+    col_nombre = next((c for c in columns if "NOMBRE" in c.upper()), None)
+    col_situacion = next((c for c in columns if "SITUAC" in c.upper()), None)
+
+    if not col_rfc or not col_nombre or not col_situacion:
+        logger.error(f"Missing expected columns. Found: {columns}")
+        raise ValueError(f"Missing required columns (RFC, NOMBRE, SITUACION). Available columns: {columns}")
 
     transformed_df = raw_df.select(
         md5(concat_ws("-", lit("SAT69B"), col(col_rfc))).alias("id_unico"),
