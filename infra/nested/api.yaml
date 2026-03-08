@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "Capa 4: API de Consumo (Producción)"
+Description: "Capa 4: API de Consumo (Producción) con UsagePlan nativo"
 
 Parameters:
   BucketName:
@@ -15,6 +15,16 @@ Resources:
       StageName: prod
       Auth:
         ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: "ComplianceGuard-Standard-Plan"
+          Description: "Plan de uso estándar para consulta de listas"
+          Quota:
+            Limit: 1000
+            Period: MONTH
+          Throttle:
+            BurstLimit: 10
+            RateLimit: 5
 
   ComplianceSearchFunction:
     Type: AWS::Serverless::Function
@@ -40,22 +50,6 @@ Resources:
     Properties:
       LogGroupName: !Sub "/aws/lambda/${ComplianceSearchFunction}"
       RetentionInDays: 7
-
-  ComplianceUsagePlan:
-    Type: AWS::ApiGateway::UsagePlan
-    DependsOn: ComplianceApiProdStage
-    Properties:
-      UsagePlanName: "ComplianceGuard-Standard-Plan"
-      Description: "Plan de uso estándar para consulta de listas"
-      ApiStages:
-        - ApiId: !Ref ComplianceApi
-          Stage: prod
-      Throttle:
-        BurstLimit: 10
-        RateLimit: 5
-      Quota:
-        Limit: 1000
-        Period: MONTH
 
 Outputs:
   ApiUrl:
