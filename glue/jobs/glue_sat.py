@@ -28,8 +28,11 @@ logger.info(f"Reading raw SAT 69B data from {sat_landing_path}")
 
 try:
     # 2. Extract Data (SAT CSV Format)
-    # PySpark CSV reader does not natively support `skipRows`. We must read without header and find it.
+    # El archivo del SAT contiene saltos de línea dentro de las comillas (multiLine)
+    # y los encabezados en la fila 3. Leemos sin cabecera y filtramos dinámicamente.
     raw_df = spark.read.option("header", "false") \
+        .option("multiLine", "true") \
+        .option("escape", "\"") \
         .option("encoding", "latin1") \
         .csv(sat_landing_path)
 
@@ -77,10 +80,14 @@ try:
         raise ValueError(f"Missing required columns (RFC, NOMBRE, SITUACION) within the resolved header row: {header_row}")
 
     # Explicitly filter out the document headers, actual header row, and empty rows
+    # Si col_rfc_index es _c1 (RFC), las filas de título tendrán nulo o estarán vacías en _c1.
+    # Filtramos donde el RFC no sea nulo, no sea la palabra "RFC", y no empiece con "Información" o "Listado" (por si las dudas).
     data_df = raw_df.filter(
         col(col_rfc_index).isNotNull() & 
-        (~col(col_rfc_index).rlike("(?i)RFC")) & 
-        (~col(col_rfc_index).rlike("(?i)Información"))
+        (col(col_rfc_index) != "") &
+        (~col(col_rfc_index).rlike("(?i)^RFC$")) & 
+        (~col(col_rfc_index).rlike("(?i)Información")) &
+        (~col(col_rfc_index).rlike("(?i)Listado"))
     )
 
     transformed_df = data_df.select(
