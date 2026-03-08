@@ -40,43 +40,40 @@ try:
     clean_string_udf = udf(clean_string, StringType())
 
     # 3. Transform Socrata JSON
-    # Socrata datos.gov.co PEP real schema:
-    # nombre_pep, numero_documento, descripcion_cargo, nombre_entidad, fecha_vinculacion, fecha_desvinculacion
+    # Confirmed Socrata datos.gov.co PEP API v3 schema (2026):
+    # nombre_pep, numero_documento, denominacion_cargo, nombre_entidad,
+    # fecha_vinculacion, fecha_desvinculacion, enlace_hoja_vida_sigep
     
-    # Log columns available for debugging
     logger.info(f"Columns in raw data: {raw_df.columns}")
     
-    # Handle both potential schema variants (real API vs. legacy)
-    nombre_col = "nombre_pep" if "nombre_pep" in raw_df.columns else "nombre"
-    doc_col = "numero_documento" if "numero_documento" in raw_df.columns else "identificacion"
-    cargo_col = "descripcion_cargo" if "descripcion_cargo" in raw_df.columns else "cargo"
-    entidad_col = "nombre_entidad" if "nombre_entidad" in raw_df.columns else "entidad"
-    
-    if nombre_col in raw_df.columns and doc_col in raw_df.columns:
+    # Validate expected columns exist
+    expected_cols = ["nombre_pep", "numero_documento"]
+    missing_cols = [c for c in expected_cols if c not in raw_df.columns]
+    if missing_cols:
+        logger.warn(f"Missing expected columns: {missing_cols}. Available: {raw_df.columns}")
+    else:
         transformed_df = raw_df.select(
-            md5(concat_ws("-", lit("PEP"), col(doc_col))).alias("id_unico"),
-            col(nombre_col).alias("nombre_original"),
-            clean_string_udf(col(nombre_col)).alias("nombre_limpio"),
-            col(doc_col).alias("identificacion"),
-            col(entidad_col).alias("tipo_entidad"),
+            md5(concat_ws("-", lit("PEP"), col("numero_documento"))).alias("id_unico"),
+            col("nombre_pep").alias("nombre_original"),
+            clean_string_udf(col("nombre_pep")).alias("nombre_limpio"),
+            col("numero_documento").alias("identificacion"),
+            col("nombre_entidad").alias("tipo_entidad"),
             lit("PEP_COLOMBIA").alias("tipo_lista"),
             date_format(current_date(), "yyyy-MM-dd").alias("fecha_carga"),
             lit("PEP").alias("fuente"),
-            concat_ws(" | Cargo: ", col(cargo_col), col(entidad_col)).alias("metadata")
+            concat_ws(" | Cargo: ", col("denominacion_cargo"), col("nombre_entidad")).alias("metadata")
         )
         
         transformed_df = transformed_df.fillna("-", subset=["identificacion", "tipo_entidad"])
         
         # 4. Load PEP to Gold Zone
-        logger.info(f"Writing PEP Data to {gold_path} partitioned by fuente")
+        logger.info(f"Writing {transformed_df.count()} PEP records to {gold_path}")
         transformed_df.write \
             .mode("overwrite") \
             .partitionBy("fuente") \
             .parquet(f"{gold_path}/")
             
         logger.info("Glue PEP ETL Job completed successfully.")
-    else:
-         logger.warn(f"Empty or Invalid Socrata PEP JSON schema received. Found columns: {raw_df.columns}")
     
 except Exception as e:
     logger.error(f"Error processing Socrata PEP data: {str(e)}")
