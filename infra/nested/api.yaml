@@ -30,8 +30,8 @@ Resources:
       FunctionName: reinesdev-compliance-api-func
       PackageType: Zip
       Runtime: python3.12
-      CodeUri: ../../src/api/
-      Handler: lambda_api.handler
+      CodeUri: ../../api-build/
+      Handler: src.api.lambda_api.handler
       MemorySize: 1024
       Timeout: 30
       Policies:
