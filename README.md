@@ -31,12 +31,10 @@ graph TD
 
 Todos los desarrollos deben realizarse en la capa conceptual correspondiente:
 
-*   **`src/`:** Núcleo (Core). Contiene modelos Pydantic (`api/schemas.py`), endpoints (`api/v1/search.py`) y lógica pura ETL.
-*   **`cloud/`:** Adaptadores por nube, Infraestructura como Código (IaC) y scripts de despliegue.
-    *   `aws/`: Contiene envoltorios Mangum para API, el `template.yaml` para despliegues con AWS SAM, y scripts como `deploy_aws.ps1`.
-    *   `azure/`: Contiene la configuración Azure Functions V2, `logic_app.bicep` para orquestación, scripts de despliegue (`deploy_az.ps1`) y utilidades de almacenamiento.
-*   **`docker/`:** Contenedores de empaque. Para AWS (Lambda Image) o Azure.
-*   **`tests/`:** Suite de validación Pytest exhaustiva.
+*   **`src/`:** Núcleo (Core). Contiene modelos Pydantic, endpoints (`api/v1/search.py`) y lógica pura ETL.
+*   **`infra/`:** Plantillas de Infraestructura como Código (IaC) en CloudFormation/SAM (`foundation.yaml`, `root-template.yaml` y `nested/`).
+*   **`lambdas/`:** Scripts nativos de extracción de las distintas fuentes (OFAC, ONU, etc).
+*   **`tests/`:** Suite de validación Pytest exhaustiva E2E y Unitaria.
 
 ---
 
@@ -45,7 +43,7 @@ Todos los desarrollos deben realizarse en la capa conceptual correspondiente:
 ### 1. Levantar la API en Local (Modo Agnóstico)
 No necesitas levantar Docker para probar la API. Simplemente asegúrate de tener las variables de entorno configuradas (`.env` con tu bucket/storage account).
 ```bash
-python -m uvicorn src.main:app --reload
+python -m uvicorn src.api.main:app --reload
 ```
 Abre en tu navegador: `http://localhost:8000/docs`
 
@@ -65,10 +63,10 @@ Todos los recursos se crean mediante Infraestructura como Código (IaC) y siguen
 
 ## 🚀 Despliegues
 
-### AWS (Vía SAM CLI)
-El despliegue primario se soporta con contenedores Serverless (AWS Lambda Images) orquestados mediante AWS Step Functions.
+### AWS (Vía SAM CLI / GitHub Actions)
+El backend está impulsado por **AWS Lambda (Python 3.12 ZIPs)**. Para evadir los límites de tamaño de paquete, se utilizan **AWS Managed Layers** oficiales (como `AWSSDKPandas-Python312`). La orquestación diaria del ETL corre mediante Step Functions.
 ```bash
-sam build --template cloud/aws/template.yaml --use-container
+sam build -t infra/root-template.yaml
 sam deploy --guided
 ```
 

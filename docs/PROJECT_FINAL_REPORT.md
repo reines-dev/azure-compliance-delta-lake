@@ -6,7 +6,7 @@ Se ha implementado una solución robusta, agnóstica a la nube y altamente escal
 ## 2. Arquitectura Implementada
 *   **Core:** FastAPI (Python 3.12) con Arquitectura Hexagonal.
 *   **Almacenamiento:** Delta Lake sobre S3 (AWS) y Blob Storage (Azure).
-*   **Cómputo:** Serverless (AWS Lambda / Azure Functions V2).
+*   **Cómputo:** Serverless (AWS Lambda + AWS Managed Layers / Azure Functions).
 *   **Orquestación:** Event-driven (AWS Step Functions / Azure Logic Apps).
 *   **Seguridad:** RBAC mediante Managed Identities e IAM Roles (sin llaves hardcodeadas).
 

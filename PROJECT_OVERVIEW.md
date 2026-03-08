@@ -18,12 +18,12 @@ El sistema ha sido completamente certificado con un **100% de éxito en pruebas 
 1.  **Motor Fonético Unificado:** Algoritmo Fuzzy Match (RapidFuzz) que permite detectar variaciones ortográficas, errores tipográficos y alias en milisegundos.
 2.  **Arquitectura ELT Data Lakehouse:** Almacenamiento S3 nativo en formato Parquet, orquestación concurrente con AWS Step Functions y procesamiento Spark con AWS Glue para máxima rentabilidad y consistencia.
 3.  **Resiliencia Cloud Native:** Ingesta híbrida capaz de saltar bloqueos de IP gubernamentales y utilizar autenticación oficial (Socrata API V3).
-4.  **Agnóstico a la Nube:** El código base es 100% portable entre **AWS Lambda** y **Azure Functions**, permitiendo estrategias de Disaster Recovery multi-nube.
+4.  **Agnóstico a la Nube:** El código base es 100% portable entre **AWS Lambda** (ZIP puro + AWS Managed Layers) y **Azure Functions**, logrando alto rendimiento sin depender de imágenes de contenedores pesadas.
 5.  **Swagger UI Integrado:** Documentación viva y probador de API disponible en la ruta `/docs`.
 
 ## 🛠️ Stack Tecnológico
 *   **Lenguaje:** Python 3.12 (Agnóstico).
-*   **Framework:** FastAPI + Mangum.
+*   **Framework:** FastAPI + Mangum (AWS Lambda Zip + Native AWS Layers).
 *   **Data Lake:** S3 Parquet Nativo + AWS Glue Data Catalog.
 *   **Transformación:** AWS Glue Flex Jobs (PySpark).
 *   **Orquestación:** Step Functions (Serverless Workflow).
