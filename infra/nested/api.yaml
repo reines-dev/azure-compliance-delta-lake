@@ -27,7 +27,7 @@ Resources:
   ComplianceSearchFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: reinesdev-compliance-search-func
+      FunctionName: reinesdev-compliance-api-func
       PackageType: Zip
       Runtime: python3.12
       CodeUri: ../../src/api/
