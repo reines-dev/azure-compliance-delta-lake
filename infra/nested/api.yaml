@@ -16,7 +16,6 @@ Resources:
         AllowHeaders: "'Content-Type,X-Api-Key,Accept,Authorization'"
         AllowOrigin: "'*'"
       Auth:
-        ApiKeyRequired: true
         UsagePlan:
           CreateUsagePlan: PER_API
           UsagePlanName: "ComplianceGuard-Standard-Plan"
@@ -48,8 +47,10 @@ Resources:
           Type: Api
           Properties:
             Path: /{proxy+}
-            Method: any
+            Method: get
             RestApiId: !Ref ComplianceApi
+            Auth:
+              ApiKeyRequired: true
 
   ComplianceSearchLogGroup:
     Type: AWS::Logs::LogGroup
