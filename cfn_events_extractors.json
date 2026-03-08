@@ -1,0 +1,92 @@
+[
+    {
+        "LogicalId": "reinesdev-compliance-root-ExtractorsStack-3ZNS7KLACT18",
+        "Reason": null,
+        "Status": "UPDATE_ROLLBACK_COMPLETE",
+        "Time": "2026-03-08T18:11:01.739000+00:00"
+    },
+    {
+        "LogicalId": "reinesdev-compliance-root-ExtractorsStack-3ZNS7KLACT18",
+        "Reason": null,
+        "Status": "UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:36.281000+00:00"
+    },
+    {
+        "LogicalId": "ExtractOpenSanctionsFunction",
+        "Reason": null,
+        "Status": "UPDATE_COMPLETE",
+        "Time": "2026-03-08T18:10:35.920000+00:00"
+    },
+    {
+        "LogicalId": "ExtractPepFunction",
+        "Reason": null,
+        "Status": "UPDATE_COMPLETE",
+        "Time": "2026-03-08T18:10:35.914000+00:00"
+    },
+    {
+        "LogicalId": "ExtractSatFunction",
+        "Reason": null,
+        "Status": "UPDATE_COMPLETE",
+        "Time": "2026-03-08T18:10:35.828000+00:00"
+    },
+    {
+        "LogicalId": "ExtractOnuFunction",
+        "Reason": null,
+        "Status": "UPDATE_COMPLETE",
+        "Time": "2026-03-08T18:10:35.708000+00:00"
+    },
+    {
+        "LogicalId": "ExtractOfacFunction",
+        "Reason": null,
+        "Status": "UPDATE_COMPLETE",
+        "Time": "2026-03-08T18:10:35.680000+00:00"
+    },
+    {
+        "LogicalId": "ExtractPepFunction",
+        "Reason": null,
+        "Status": "UPDATE_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:28.164000+00:00"
+    },
+    {
+        "LogicalId": "ExtractOnuFunction",
+        "Reason": null,
+        "Status": "UPDATE_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:28.131000+00:00"
+    },
+    {
+        "LogicalId": "ExtractSatFunction",
+        "Reason": null,
+        "Status": "UPDATE_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:28.110000+00:00"
+    },
+    {
+        "LogicalId": "ExtractOpenSanctionsFunction",
+        "Reason": null,
+        "Status": "UPDATE_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:28.093000+00:00"
+    },
+    {
+        "LogicalId": "ExtractOfacFunction",
+        "Reason": null,
+        "Status": "UPDATE_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:28.085000+00:00"
+    },
+    {
+        "LogicalId": "reinesdev-compliance-root-ExtractorsStack-3ZNS7KLACT18",
+        "Reason": "User Initiated",
+        "Status": "UPDATE_ROLLBACK_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:25.763000+00:00"
+    },
+    {
+        "LogicalId": "reinesdev-compliance-root-ExtractorsStack-3ZNS7KLACT18",
+        "Reason": null,
+        "Status": "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS",
+        "Time": "2026-03-08T18:10:16.140000+00:00"
+    },
+    {
+        "LogicalId": "ExtractOpenSanctionsFunction",
+        "Reason": null,
+        "Status": "UPDATE_COMPLETE",
+        "Time": "2026-03-08T18:10:14.833000+00:00"
+    }
+]

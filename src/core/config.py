@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     # Sources URLs
     ofac_sdn_url: str = "https://www.treasury.gov/ofac/downloads/sdn.csv"
     ofac_alt_url: str = "https://www.treasury.gov/ofac/downloads/add.csv"
-    sat69b_url: str = "http://omawww.sat.gob.mx/cifras_sat/Documents/ListadoGlobalDefinitivo.csv"
     onu_url: str = "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
     fbi_wanted_api_url: str = "https://api.fbi.gov/wanted/v1/list"
     worldbank_api_url: str = "https://data.opensanctions.org/datasets/20260228/worldbank_debarred/entities.ftm.json"

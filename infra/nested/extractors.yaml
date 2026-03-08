@@ -24,7 +24,6 @@ Globals:
         LANDING_ZONE_PATH: !Sub s3://${BucketName}/landing/listas
         OFAC_SDN_URL: "https://www.treasury.gov/ofac/downloads/sdn.csv"
         OFAC_ALT_URL: "https://www.treasury.gov/ofac/downloads/add.csv"
-        SAT69B_URL: "http://omawww.sat.gob.mx/cifras_sat/Documents/ListadoGlobalDefinitivo.csv"
         ONU_URL: "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
         PEP_URL: "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
         DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
@@ -47,13 +46,6 @@ Resources:
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
-  ExtractSatFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: sat_handler.sat69b_handler
-      CodeUri: ../../extractors.zip
-      Policies:
-        - S3CrudPolicy: { BucketName: !Ref BucketName }
 
   ExtractPepFunction:
     Type: AWS::Serverless::Function
@@ -80,8 +72,6 @@ Outputs:
     Value: !GetAtt ExtractOfacFunction.Arn
   ExtractOnuArn:
     Value: !GetAtt ExtractOnuFunction.Arn
-  ExtractSatArn:
-    Value: !GetAtt ExtractSatFunction.Arn
   ExtractPepArn:
     Value: !GetAtt ExtractPepFunction.Arn
   ExtractOpenSanctionsArn:

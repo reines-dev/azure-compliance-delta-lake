@@ -5,13 +5,11 @@ Description: "Capa 3: Orquestación (Step Functions)"
 Parameters:
   OfacJob: { Type: String }
   OnuJob: { Type: String }
-  SatJob: { Type: String }
   PepJob: { Type: String }
   OpenSanctionsJob: { Type: String }
   CrawlerName: { Type: String }
   ExtractOfacArn: { Type: String }
   ExtractOnuArn: { Type: String }
-  ExtractSatArn: { Type: String }
   ExtractPepArn: { Type: String }
   ExtractOpenSanctionsArn: { Type: String }
 
@@ -59,18 +57,6 @@ Resources:
                     Resource: arn:aws:states:::glue:startJobRun.sync
                     Parameters:
                       JobName: !Ref OnuJob
-                    End: true
-              - StartAt: ExtractSAT
-                States:
-                  ExtractSAT:
-                    Type: Task
-                    Resource: !Ref ExtractSatArn
-                    Next: TransformSAT
-                  TransformSAT:
-                    Type: Task
-                    Resource: arn:aws:states:::glue:startJobRun.sync
-                    Parameters:
-                      JobName: !Ref SatJob
                     End: true
               - StartAt: ExtractPEP
                 States:

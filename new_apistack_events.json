@@ -1,0 +1,12 @@
+[
+    [
+        "2026-03-08T12:38:31.596000+00:00",
+        "reinesdev-compliance-root-ApiStack-OZ1FM6M2XSQ8",
+        "The following resource(s) failed to create: [ComplianceUsagePlan]. "
+    ],
+    [
+        "2026-03-08T12:38:25.038000+00:00",
+        "ComplianceUsagePlan",
+        "Resource handler returned message: \"API Stage not found: i2kluujsyh:prod (Service: ApiGateway, Status Code: 404, Request ID: 3a344fc4-6679-4437-bde9-6772f5262543) (SDK Attempt Count: 1)\" (RequestToken: 9e7ba536-d42d-5d24-38bf-e7193c4ab050, HandlerErrorCode: NotFound)"
+    ]
+]
