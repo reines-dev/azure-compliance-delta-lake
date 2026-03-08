@@ -68,7 +68,7 @@ try:
             
         logger.info("Glue PEP ETL Job completed successfully.")
     else:
-         logger.warning("Empty or Invalid Socrata PEP JSON schema received.")
+         logger.warn("Empty or Invalid Socrata PEP JSON schema received.")
     
 except Exception as e:
     logger.error(f"Error processing Socrata PEP data: {str(e)}")
