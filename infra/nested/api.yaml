@@ -5,8 +5,6 @@ Description: "Capa 4: API de Consumo (Producción) con UsagePlan nativo"
 Parameters:
   BucketName:
     Type: String
-  ImageUri:
-    Type: String
 
 Resources:
   ComplianceApi:
@@ -30,8 +28,10 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: reinesdev-compliance-search-func
-      PackageType: Image
-      ImageUri: !Ref ImageUri
+      PackageType: Zip
+      Runtime: python3.12
+      CodeUri: ../../src/api/
+      Handler: lambda_api.handler
       MemorySize: 1024
       Timeout: 30
       Policies:
