@@ -98,7 +98,7 @@ jobs:
           
           mkdir -p api-build
           cp -r src/ api-build/src/
-          cp -r src/api/requirements.txt api-build/
+          grep -v "awswrangler" src/api/requirements.txt > api-build/requirements.txt
           cd api-build
           pip install -r requirements.txt -t .
           zip -r ../api.zip .
