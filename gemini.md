@@ -14,6 +14,7 @@ El sistema ha alcanzado su madurez productiva en AWS, consolidando una plataform
 *   **Transformación:** Migración completada a **AWS Glue Flex (PySpark)**, reduciendo los costos de computo y superando los límites de memoria de Pandas/DeltaLake.
 *   **Almacenamiento:** Transición de DeltaLake a **S3 Parquet Nativo** particionado (`fuente=X`), administrado vía AWS Glue Data Catalog.
 *   **Búsqueda (API):** Consumo optimizado con `awswrangler` (Partition Pushdown), bajando la memoria requerida en la Lambda de **3008MB a 1024MB** y Extractoras a **256MB**.
+*   **Despliegue API (ECR a ZIP):** Refactorizamos el backend para evitar pesadas imágenes de Docker. Ahora funciona en **Lambda (ZIPs)** gracias al uso de **AWS Managed Layers** (`AWSSDKPandas-Python312`) para inyectar Pandas/awswrangler evadiendo el límite estricto de 250MB de AWS.
 
 ## 3. Credenciales y Seguridad
 *   **Socrata (Colombia):** Credenciales configuradas en `.env` y mapeadas en `Settings` (`DATOS_GOV_KEY_ID`, `DATOS_GOV_API_KEY`).
@@ -27,6 +28,13 @@ El sistema ha alcanzado su madurez productiva en AWS, consolidando una plataform
 *   **Azure Finalization:** Portar los cambios de los parsers robustos y la optimización de memoria a la configuración de Azure Functions.
 *   **Monitoring:** Implementar alarmas de CloudWatch para detectar fallos en la ingesta diaria de OpenSanctions.
 *   **Web UI:** Vincular el archivo `ui/index.html` con el nuevo endpoint `/prod/check/`.
+
+## 6. Políticas de Repositorio (Git & CI/CD)
+Para mantener la limpieza y estabilidad en el despliegue, la próxima sesión de IA deberá adherirse a estas reglas de control de versiones:
+*   **Ramas Aisladas:** Todo cambio se desarrolla en ramas descriptivas (`feature/descripción`, `fix/descripción`, `docs/descripción`).
+*   **Conventional Commits:** Uso de tipologías (`feat:`, `fix:`, `refactor:`, `docs:`).
+*   **Quality Gates:** Un Pull Request debe esperar a que GitHub Actions termine las validaciones de `pytest` (`Test & Quality Gate`) antes de ser fusionado.
+*   **Continuous Deployment:** El workflow `deploy-production.yml` orquesta el pase a AWS. Desacopla eficientemente dependencias pesadas de `pip` asumiéndolas dentro de las Layers de AWS.
 
 ---
 **Nota de Contexto:** El motor de búsqueda utiliza `RapidFuzz` con `token_set_ratio`. El umbral recomendado para producción es **85.0**.
