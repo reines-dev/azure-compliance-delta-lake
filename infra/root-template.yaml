@@ -5,9 +5,6 @@ Parameters:
   FoundationStackName:
     Type: String
     Default: reinesdev-compliance-foundation
-  ImageUri:
-    Type: String
-    Description: "URI de la imagen Docker para la API (ECR)"
 
 Resources:
   # CAPA 1: EXTRACTORES
@@ -58,7 +55,6 @@ Resources:
       Parameters:
         BucketName: !ImportValue 
           Fn::Sub: "${FoundationStackName}-BucketName"
-        ImageUri: !Ref ImageUri
 
 Outputs:
   ApiEndpoint:

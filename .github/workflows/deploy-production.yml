@@ -85,10 +85,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.REGION }}
 
-      - name: 🔑 Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
       - name: 📤 Sync AWS Glue Scripts
         run: |
           aws s3 sync glue/jobs/ s3://${{ needs.deploy-foundation.outputs.bucket_name }}/system/glue_jobs/ --exclude "*" --include "*.py"
@@ -99,13 +95,14 @@ jobs:
           cd lambdas
           zip -r ../extractors.zip .
           cd ..
-
-      - name: 🐳 Build & Push API Image
-        env:
-          ECR_URI: ${{ needs.deploy-foundation.outputs.ecr_uri }}
-        run: |
-          docker build -t $ECR_URI:latest -f src/api/Dockerfile.aws .
-          docker push $ECR_URI:latest
+          
+          mkdir -p api-build
+          cp -r src/ api-build/src/
+          cp -r src/api/requirements.txt api-build/
+          cd api-build
+          pip install -r requirements.txt -t .
+          zip -r ../api.zip .
+          cd ..
 
       - name: 📦 Package CloudFormation
         run: |
@@ -122,5 +119,4 @@ jobs:
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
-              FoundationStackName=${{ env.FOUNDATION_STACK }} \
-              ImageUri=${{ needs.deploy-foundation.outputs.ecr_uri }}:latest
+              FoundationStackName=${{ env.FOUNDATION_STACK }}
