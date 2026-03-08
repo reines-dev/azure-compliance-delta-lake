@@ -120,4 +120,6 @@ jobs:
             --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --no-fail-on-empty-changeset \
             --parameter-overrides \
-              FoundationStackName=${{ env.FOUNDATION_STACK }}
+              FoundationStackName=${{ env.FOUNDATION_STACK }} \
+              DatosGovKeyId=${{ secrets.DATOS_GOV_KEY_ID }} \
+              DatosGovApiKey=${{ secrets.DATOS_GOV_API_KEY }}

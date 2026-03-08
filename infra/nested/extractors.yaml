@@ -5,6 +5,12 @@ Description: "Capa 1: Extractores (Lambdas) - Estructura Plana"
 Parameters:
   BucketName:
     Type: String
+  DatosGovKeyId:
+    Type: String
+    NoEcho: true
+  DatosGovApiKey:
+    Type: String
+    NoEcho: true
 
 Globals:
   Function:
@@ -54,6 +60,10 @@ Resources:
     Properties:
       Handler: pep_handler.socrata_pep_handler
       CodeUri: ../../extractors.zip
+      Environment:
+        Variables:
+          DATOS_GOV_KEY_ID: !Ref DatosGovKeyId
+          DATOS_GOV_API_KEY: !Ref DatosGovApiKey
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
