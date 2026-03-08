@@ -28,10 +28,12 @@ logger.info(f"Reading raw SAT 69B data from {sat_landing_path}")
 
 try:
     # 2. Extract Data (SAT CSV Format)
-    # El archivo del SAT tiene 2 líneas de información antes de los encabezados reales
-    raw_df = spark.read.option("header", "true") \
+    # El archivo del SAT contiene saltos de línea dentro de las comillas (multiLine)
+    # y los encabezados en la fila 3. Leemos sin cabecera y filtramos dinámicamente.
+    raw_df = spark.read.option("header", "false") \
+        .option("multiLine", "true") \
+        .option("escape", "\"") \
         .option("encoding", "latin1") \
-        .option("skipRows", 2) \
         .csv(sat_landing_path)
 
     def clean_string(name):
@@ -44,22 +46,55 @@ try:
     clean_string_udf = udf(clean_string, StringType())
 
     # 3. Transform SAT 69B
-    # Check what columns actually exist
-    columns = raw_df.columns
-    
-    col_rfc = next((c for c in columns if "RFC" in c.upper()), None)
-    col_nombre = next((c for c in columns if "NOMBRE" in c.upper()), None)
-    col_situacion = next((c for c in columns if "SITUAC" in c.upper()), None)
+    # Check the first 15 rows to find the actual header row dynamically
+    sample_rows = raw_df.take(15)
+    header_row = None
 
-    if not col_rfc or not col_nombre or not col_situacion:
-        logger.error(f"Missing expected columns. Found: {columns}")
-        raise ValueError(f"Missing required columns (RFC, NOMBRE, SITUACION). Available columns: {columns}")
+    for row in sample_rows:
+        row_values = [str(x).upper() for x in row if x is not None]
+        if any("RFC" in val for val in row_values) and any("NOMBRE" in val for val in row_values):
+            header_row = row
+            break
 
-    transformed_df = raw_df.select(
-        md5(concat_ws("-", lit("SAT69B"), col(col_rfc))).alias("id_unico"),
-        col(col_nombre).alias("nombre_original"),
-        clean_string_udf(col(col_nombre)).alias("nombre_limpio"),
-        col(col_rfc).alias("identificacion"),
+    if not header_row:
+        logger.error(f"Sample rows evaluated: {sample_rows}")
+        raise ValueError("Could not find a valid header row containing RFC and NOMBRE in the SAT CSV.")
+
+    # Map the actual indices
+    col_rfc_index = None
+    col_nombre_index = None
+    col_situacion_index = None
+
+    for idx, val in enumerate(header_row):
+        if not val:
+            continue
+        val_upper = str(val).upper()
+        if "RFC" in val_upper:
+            col_rfc_index = f"_c{idx}"
+        elif "NOMBRE" in val_upper:
+            col_nombre_index = f"_c{idx}"
+        elif "SITUAC" in val_upper:
+            col_situacion_index = f"_c{idx}"
+
+    if not col_rfc_index or not col_nombre_index or not col_situacion_index:
+        raise ValueError(f"Missing required columns (RFC, NOMBRE, SITUACION) within the resolved header row: {header_row}")
+
+    # Explicitly filter out the document headers, actual header row, and empty rows
+    # Si col_rfc_index es _c1 (RFC), las filas de título tendrán nulo o estarán vacías en _c1.
+    # Filtramos donde el RFC no sea nulo, no sea la palabra "RFC", y no empiece con "Información" o "Listado" (por si las dudas).
+    data_df = raw_df.filter(
+        col(col_rfc_index).isNotNull() & 
+        (col(col_rfc_index) != "") &
+        (~col(col_rfc_index).rlike("(?i)^RFC$")) & 
+        (~col(col_rfc_index).rlike("(?i)Información")) &
+        (~col(col_rfc_index).rlike("(?i)Listado"))
+    )
+
+    transformed_df = data_df.select(
+        md5(concat_ws("-", lit("SAT69B"), col(col_rfc_index))).alias("id_unico"),
+        col(col_nombre_index).alias("nombre_original"),
+        clean_string_udf(col(col_nombre_index)).alias("nombre_limpio"),
+        col(col_rfc_index).alias("identificacion"),
         lit("Empresa").alias("tipo_entidad"),
         lit("SAT69B_RESTRICTIVA").alias("tipo_lista"),
         date_format(current_date(), "yyyy-MM-dd").alias("fecha_carga"),
