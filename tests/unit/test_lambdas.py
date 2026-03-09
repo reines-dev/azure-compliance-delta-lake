@@ -19,9 +19,11 @@ def aws_credentials():
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
 @pytest.fixture
-def mock_s3_env(aws_credentials):
+def mock_s3_env(aws_credentials, monkeypatch):
     with mock_aws():
-        os.environ['COMPLIANCE_LAKE_BUCKET'] = 'test-bucket'
+        monkeypatch.setenv('COMPLIANCE_LAKE_BUCKET', 'test-bucket')
+        monkeypatch.setenv('DATOS_GOV_KEY_ID', 'test_key')
+        monkeypatch.setenv('DATOS_GOV_API_KEY', 'test_secret')
         s3 = boto3.client('s3', region_name='us-east-1')
         s3.create_bucket(Bucket='test-bucket')
         yield s3
@@ -41,8 +43,6 @@ def test_all_extractors(mock_request, mock_s3_env):
     assert onu_handler({"ONU_URL": "http://mock"}, None)['status'] == 'success'
     
     # Test PEP (also testing auth injection when vars exist)
-    os.environ['DATOS_GOV_KEY_ID'] = 'test_key'
-    os.environ['DATOS_GOV_API_KEY'] = 'test_secret'
     assert socrata_pep_handler({"PEP_URL": "http://mock"}, None)['status'] == 'success'
     
     # Test PEP Fallback to GET
@@ -84,8 +84,11 @@ def test_missing_payloads(mock_s3_env):
     with pytest.raises(ValueError, match="ONU_URL"):
         onu_handler({}, None)
         
-    with pytest.raises(ValueError, match="PEP_URL"):
-        socrata_pep_handler({}, None)
+    with pytest.raises(ValueError, match="PEP_URL, DATOS_GOV_KEY_ID o DATOS_GOV_API_KEY"):
+        # Providing URL but no credentials by clearing environ
+        if 'DATOS_GOV_KEY_ID' in os.environ:
+            del os.environ['DATOS_GOV_KEY_ID']
+        socrata_pep_handler({"PEP_URL": "http://mock"}, None)
         
     with pytest.raises(ValueError, match="source_id"):
         opensanctions_proxy_handler({}, None)
