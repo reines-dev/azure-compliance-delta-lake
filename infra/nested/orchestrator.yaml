@@ -39,36 +39,51 @@ Resources:
                   ExtractOFAC:
                     Type: Task
                     Resource: !Ref ExtractOfacArn
+                    Parameters:
+                      "OFAC_SDN_URL": "https://www.treasury.gov/ofac/downloads/sdn.csv"
                     Next: TransformOFAC
                   TransformOFAC:
                     Type: Task
                     Resource: arn:aws:states:::glue:startJobRun.sync
                     Parameters:
                       JobName: !Ref OfacJob
+                      Arguments:
+                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
+                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
                     End: true
               - StartAt: ExtractONU
                 States:
                   ExtractONU:
                     Type: Task
                     Resource: !Ref ExtractOnuArn
+                    Parameters:
+                      "ONU_URL": "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
                     Next: TransformONU
                   TransformONU:
                     Type: Task
                     Resource: arn:aws:states:::glue:startJobRun.sync
                     Parameters:
                       JobName: !Ref OnuJob
+                      Arguments:
+                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
+                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
                     End: true
               - StartAt: ExtractPEP
                 States:
                   ExtractPEP:
                     Type: Task
                     Resource: !Ref ExtractPepArn
+                    Parameters:
+                      "PEP_URL": "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
                     Next: TransformPEP
                   TransformPEP:
                     Type: Task
                     Resource: arn:aws:states:::glue:startJobRun.sync
                     Parameters:
                       JobName: !Ref PepJob
+                      Arguments:
+                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
+                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
                     End: true
               - StartAt: ExtractOpenSanctions
                 States:
@@ -85,6 +100,8 @@ Resources:
                       JobName: !Ref OpenSanctionsJob
                       Arguments:
                         "--OPENSANCTIONS_SOURCE_ID": "us_fbi_most_wanted"
+                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
+                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
                     End: true
           RunCrawler:
             Type: Task

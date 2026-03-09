@@ -18,7 +18,9 @@ def socrata_pep_handler(event, context):
     try:
         bucket = os.environ['COMPLIANCE_LAKE_BUCKET']
         landing_prefix = "landing/listas/pep"
-        url = os.environ.get('PEP_URL', 'https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json')
+        url = event.get('PEP_URL') or os.environ.get('PEP_URL')
+        if not url:
+            raise ValueError("PEP_URL no está definida en el payload del evento ni en las variables de entorno.")
         key_id = os.environ.get('DATOS_GOV_KEY_ID')
         api_key = os.environ.get('DATOS_GOV_API_KEY')
         

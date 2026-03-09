@@ -19,7 +19,9 @@ def ofac_handler(event, context):
         # 1. Configuration
         bucket = os.environ['COMPLIANCE_LAKE_BUCKET']
         landing_prefix = "landing/listas/ofac"
-        url = os.environ.get('OFAC_SDN_URL', 'https://www.treasury.gov/ofac/downloads/sdn.csv')
+        url = event.get('OFAC_SDN_URL') or os.environ.get('OFAC_SDN_URL')
+        if not url:
+            raise ValueError("OFAC_SDN_URL no está definida en el payload del evento ni en las variables de entorno.")
         today_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
         
         # 2. Extract (Download)
