@@ -25,9 +25,7 @@ Globals:
         OFAC_SDN_URL: "https://www.treasury.gov/ofac/downloads/sdn.csv"
         OFAC_ALT_URL: "https://www.treasury.gov/ofac/downloads/add.csv"
         ONU_URL: "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
-        PEP_URL: "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
-        DATOS_GOV_KEY_ID: "d6if00d6bulczelcxwh1ofa05"
-        DATOS_GOV_API_KEY: "2we7eyfg1mz7xo1o0bwio1dmva730c4r0m1e958iiwxp60bl4m"
+        PEP_URL: "https://www.datos.gov.co/resource/3qxn-uc22.json?$limit=500000"
 
 Resources:
   ExtractOfacFunction:

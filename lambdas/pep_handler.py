@@ -41,11 +41,13 @@ def socrata_pep_handler(event, context):
             headers['Authorization'] = f"Basic {encoded_auth}"
             logger.info("Using Basic Auth for Socrata.")
             
-        # Intentar peticiÃ³n POST vacÃ­a (estÃ¡ndar en API V3 query) o GET
-        response = http.request('POST', url, headers=headers, body=json.dumps({}))
-        
-        if response.status != 200:
-            logger.warning(f"POST failed with {response.status}, trying GET...")
+        # Intentar GET por defecto, o POST si es la API V3 Query
+        if "query.json" in url:
+            response = http.request('POST', url, headers=headers, body=json.dumps({}))
+            if response.status != 200:
+                logger.warning(f"POST failed with {response.status}, trying GET...")
+                response = http.request('GET', url, headers=headers)
+        else:
             response = http.request('GET', url, headers=headers)
             
         if response.status != 200:

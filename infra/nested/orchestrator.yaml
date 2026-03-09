@@ -74,7 +74,7 @@ Resources:
                     Type: Task
                     Resource: !Ref ExtractPepArn
                     Parameters:
-                      "PEP_URL": "https://www.datos.gov.co/api/v3/views/3qxn-uc22/query.json"
+                      "PEP_URL": "https://www.datos.gov.co/resource/3qxn-uc22.json?$limit=500000"
                     Next: TransformPEP
                   TransformPEP:
                     Type: Task
