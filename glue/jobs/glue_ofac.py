@@ -18,8 +18,12 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
-landing_path = args.get('LANDING_ZONE_PATH', 's3://reinesdev-compliance-lake-prd/landing/listas')
-gold_path = args.get('GOLD_ZONE_PATH', 's3://reinesdev-compliance-lake-prd/gold/listas')
+landing_path = args.get('LANDING_ZONE_PATH')
+gold_path = args.get('GOLD_ZONE_PATH')
+
+if not landing_path or not gold_path:
+    raise ValueError("LANDING_ZONE_PATH y GOLD_ZONE_PATH originados de la Step Function son obligatorios.")
+
 today_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
 
 # Full path to today's raw file
