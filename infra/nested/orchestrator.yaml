@@ -3,6 +3,7 @@ Transform: AWS::Serverless-2016-10-31
 Description: "Capa 3: Orquestación (Step Functions)"
 
 Parameters:
+  BucketName: { Type: String }
   OfacJob: { Type: String }
   OnuJob: { Type: String }
   OpenSanctionsJob: { Type: String }
@@ -46,8 +47,8 @@ Resources:
                     Parameters:
                       JobName: !Ref OfacJob
                       Arguments:
-                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
-                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
+                        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+                        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
                     End: true
               - StartAt: ExtractONU
                 States:
@@ -63,8 +64,8 @@ Resources:
                     Parameters:
                       JobName: !Ref OnuJob
                       Arguments:
-                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
-                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
+                        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+                        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
                     End: true
               - StartAt: OpenSanctionsMultiSource
                 States:
@@ -93,6 +94,7 @@ Resources:
                           Resource: !Ref ExtractOpenSanctionsArn
                           Parameters:
                             "source_id.$": "$.source_id"
+                          ResultPath: "$.extraction_result"
                           Next: TransformOpenSanctionsItem
                         TransformOpenSanctionsItem:
                           Type: Task
@@ -101,8 +103,8 @@ Resources:
                             JobName: !Ref OpenSanctionsJob
                             Arguments:
                               "--OPENSANCTIONS_SOURCE_ID.$": "$.source_id"
-                              "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
-                              "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
+                              "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+                              "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
                           End: true
                     End: true
           RunCrawler:
