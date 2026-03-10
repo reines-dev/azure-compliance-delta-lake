@@ -45,12 +45,10 @@ Resources:
       Parameters:
         OfacJob: !GetAtt EtlStack.Outputs.OfacGlueJobName
         OnuJob: !GetAtt EtlStack.Outputs.OnuGlueJobName
-        PepJob: !GetAtt EtlStack.Outputs.PepGlueJobName
         OpenSanctionsJob: !GetAtt EtlStack.Outputs.OpenSanctionsGlueJobName
         CrawlerName: !GetAtt EtlStack.Outputs.ComplianceCrawlerName
         ExtractOfacArn: !GetAtt ExtractorsStack.Outputs.ExtractOfacArn
         ExtractOnuArn: !GetAtt ExtractorsStack.Outputs.ExtractOnuArn
-        ExtractPepArn: !GetAtt ExtractorsStack.Outputs.ExtractPepArn
         ExtractOpenSanctionsArn: !GetAtt ExtractorsStack.Outputs.ExtractOpenSanctionsArn
 
   # CAPA 4: API

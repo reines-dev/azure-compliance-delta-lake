@@ -5,12 +5,10 @@ Description: "Capa 3: Orquestación (Step Functions)"
 Parameters:
   OfacJob: { Type: String }
   OnuJob: { Type: String }
-  PepJob: { Type: String }
   OpenSanctionsJob: { Type: String }
   CrawlerName: { Type: String }
   ExtractOfacArn: { Type: String }
   ExtractOnuArn: { Type: String }
-  ExtractPepArn: { Type: String }
   ExtractOpenSanctionsArn: { Type: String }
 
 Resources:
@@ -64,23 +62,6 @@ Resources:
                     Resource: arn:aws:states:::glue:startJobRun.sync
                     Parameters:
                       JobName: !Ref OnuJob
-                      Arguments:
-                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
-                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
-                    End: true
-              - StartAt: ExtractPEP
-                States:
-                  ExtractPEP:
-                    Type: Task
-                    Resource: !Ref ExtractPepArn
-                    Parameters:
-                      "PEP_URL": "https://www.datos.gov.co/resource/3qxn-uc22.json?$limit=500000"
-                    Next: TransformPEP
-                  TransformPEP:
-                    Type: Task
-                    Resource: arn:aws:states:::glue:startJobRun.sync
-                    Parameters:
-                      JobName: !Ref PepJob
                       Arguments:
                         "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
                         "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"

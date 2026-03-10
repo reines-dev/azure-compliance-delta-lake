@@ -47,23 +47,6 @@ Resources:
       Timeout: 60
 
 
-  TransformPepGlueJob:
-    Type: AWS::Glue::Job
-    Properties:
-      Role: !Ref GlueRoleArn
-      Command:
-        Name: "glueetl"
-        ScriptLocation: !Sub "s3://${BucketName}/system/glue_jobs/glue_pep.py"
-        PythonVersion: "3"
-      DefaultArguments:
-        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
-        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
-      GlueVersion: "4.0"
-      WorkerType: "G.1X"
-      NumberOfWorkers: 2
-      MaxRetries: 0
-      Timeout: 60
-
   TransformOpenSanctionsGlueJob:
     Type: AWS::Glue::Job
     Properties:
@@ -99,8 +82,6 @@ Outputs:
     Value: !Ref TransformOfacGlueJob
   OnuGlueJobName:
     Value: !Ref TransformOnuGlueJob
-  PepGlueJobName:
-    Value: !Ref TransformPepGlueJob
   OpenSanctionsGlueJobName:
     Value: !Ref TransformOpenSanctionsGlueJob
   ComplianceCrawlerName:
