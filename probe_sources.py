@@ -1,7 +1,7 @@
 import requests, json
 
-API_URL = "https://a4r3h4j1kl.execute-api.us-east-1.amazonaws.com/prod/check/"
-API_KEY = "1UvGBiR4nW3S68KJmbKB59V7nHMU5kdJ7aHFFp07"
+API_URL = "https://1plkktk2ak.execute-api.us-east-1.amazonaws.com/prod/check/"
+API_KEY = "yKEM6Phs6rW5Pb9j04Sl1AayX5KsL5w9Zqb85X25"
 HEADERS = {"x-api-key": API_KEY, "Accept": "application/json"}
 
 probes = [

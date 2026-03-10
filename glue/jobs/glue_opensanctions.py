@@ -79,7 +79,7 @@ try:
     # 4. Load OpenSanctions Data to Gold Zone
     logger.info(f"Writing {source_id.upper()} Data to {gold_path} partitioned by fuente")
     transformed_df.write \
-        .mode("overwrite") \
+        .mode("append") \
         .partitionBy("fuente") \
         .parquet(f"{gold_path}/")
 
