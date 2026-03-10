@@ -19,11 +19,12 @@ def socrata_pep_handler(event, context):
         bucket = os.environ['COMPLIANCE_LAKE_BUCKET']
         landing_prefix = "landing/listas/pep"
         url = event.get('PEP_URL') or os.environ.get('PEP_URL')
-        if not url:
-            raise ValueError("PEP_URL no está definida en el payload del evento ni en las variables de entorno.")
         key_id = os.environ.get('DATOS_GOV_KEY_ID')
         api_key = os.environ.get('DATOS_GOV_API_KEY')
-        
+
+        if not url or not key_id or not api_key:
+            raise ValueError("PEP_URL, DATOS_GOV_KEY_ID o DATOS_GOV_API_KEY no están definidas en el payload del evento ni en las variables de entorno.")
+
         today_str = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
         
         logger.info(f"Downloading PEP Socrata data from {url}")

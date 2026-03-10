@@ -51,7 +51,7 @@ def test_all_extractors(mock_request, mock_s3_env):
     mock_resp_get.status = 200
     mock_resp_get.data = b"id,name\n1,TEST DATA"
     mock_request.side_effect = [mock_resp, mock_resp_get] # First POST fails, GET succeeds
-    assert socrata_pep_handler({"PEP_URL": "http://mock"}, None)['status'] == 'success'
+    assert socrata_pep_handler({"PEP_URL": "http://mock/query.json"}, None)['status'] == 'success'
     mock_request.side_effect = None # Reset side effect
     mock_request.return_value = mock_resp_get
     
@@ -59,7 +59,7 @@ def test_all_extractors(mock_request, mock_s3_env):
     assert opensanctions_proxy_handler({"source_id": "fbi_wanted"}, None)['status'] == 'success'
 
 @patch('urllib3.PoolManager.request')
-def test_all_extractors_exceptions(mock_request, mock_s3_env):
+def test_all_extractors_exceptions(mock_request, mock_s3_env, monkeypatch):
     mock_resp = MagicMock()
     mock_resp.status = 500
     mock_request.return_value = mock_resp
@@ -74,10 +74,13 @@ def test_all_extractors_exceptions(mock_request, mock_s3_env):
         opensanctions_proxy_handler({"source_id": "fbi"}, None)
         
     with pytest.raises(Exception, match="Failed to download data"):
+        # Ensure PEP has the required variables to get past the initial validation
+        monkeypatch.setenv('DATOS_GOV_KEY_ID', 'test_key')
+        monkeypatch.setenv('DATOS_GOV_API_KEY', 'test_secret')
         # PEP does two requests if POST fails, both mocking 500 here
         socrata_pep_handler({"PEP_URL": "http://mock"}, None)
 
-def test_missing_payloads(mock_s3_env):
+def test_missing_payloads(mock_s3_env, monkeypatch):
     with pytest.raises(ValueError, match="OFAC_SDN_URL"):
         ofac_handler({}, None)
         
@@ -85,9 +88,9 @@ def test_missing_payloads(mock_s3_env):
         onu_handler({}, None)
         
     with pytest.raises(ValueError, match="PEP_URL, DATOS_GOV_KEY_ID o DATOS_GOV_API_KEY"):
-        # Providing URL but no credentials by clearing environ
-        if 'DATOS_GOV_KEY_ID' in os.environ:
-            del os.environ['DATOS_GOV_KEY_ID']
+        # Providing URL but ensuring no credentials exist
+        monkeypatch.delenv('DATOS_GOV_KEY_ID', raising=False)
+        monkeypatch.delenv('DATOS_GOV_API_KEY', raising=False)
         socrata_pep_handler({"PEP_URL": "http://mock"}, None)
         
     with pytest.raises(ValueError, match="source_id"):
