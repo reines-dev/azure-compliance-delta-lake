@@ -77,7 +77,6 @@ Resources:
                       - "interpol_red_notices"
                       - "worldbank_debarred"
                       - "eu_fsf"
-                      - "ca_dfatd_sanctions"
                       - "gb_hmt_sanctions"
                     ResultPath: "$.sources"
                     Next: MapOpenSanctions
