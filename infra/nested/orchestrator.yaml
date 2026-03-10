@@ -93,6 +93,7 @@ Resources:
                           Resource: !Ref ExtractOpenSanctionsArn
                           Parameters:
                             "source_id.$": "$.source_id"
+                          ResultPath: "$.extraction_result"
                           Next: TransformOpenSanctionsItem
                         TransformOpenSanctionsItem:
                           Type: Task
