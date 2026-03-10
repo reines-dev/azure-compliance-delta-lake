@@ -51,7 +51,7 @@ def test_all_extractors(mock_request, mock_s3_env):
     mock_resp_get.status = 200
     mock_resp_get.data = b"id,name\n1,TEST DATA"
     mock_request.side_effect = [mock_resp, mock_resp_get] # First POST fails, GET succeeds
-    assert socrata_pep_handler({"PEP_URL": "http://mock"}, None)['status'] == 'success'
+    assert socrata_pep_handler({"PEP_URL": "http://mock/query.json"}, None)['status'] == 'success'
     mock_request.side_effect = None # Reset side effect
     mock_request.return_value = mock_resp_get
     
