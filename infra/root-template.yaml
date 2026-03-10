@@ -5,12 +5,6 @@ Parameters:
   FoundationStackName:
     Type: String
     Default: reinesdev-compliance-foundation
-  DatosGovKeyId:
-    Type: String
-    NoEcho: true
-  DatosGovApiKey:
-    Type: String
-    NoEcho: true
 
 Resources:
   # CAPA 1: EXTRACTORES
@@ -21,8 +15,6 @@ Resources:
       Parameters:
         BucketName: !ImportValue 
           Fn::Sub: "${FoundationStackName}-BucketName"
-        DatosGovKeyId: !Ref DatosGovKeyId
-        DatosGovApiKey: !Ref DatosGovApiKey
 
   # CAPA 2: ETL (Depende de Capa 1)
   EtlStack:
