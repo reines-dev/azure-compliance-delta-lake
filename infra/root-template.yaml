@@ -35,6 +35,8 @@ Resources:
     Properties:
       TemplateURL: nested/orchestrator.yaml
       Parameters:
+        BucketName: !ImportValue 
+          Fn::Sub: "${FoundationStackName}-BucketName"
         OfacJob: !GetAtt EtlStack.Outputs.OfacGlueJobName
         OnuJob: !GetAtt EtlStack.Outputs.OnuGlueJobName
         OpenSanctionsJob: !GetAtt EtlStack.Outputs.OpenSanctionsGlueJobName
