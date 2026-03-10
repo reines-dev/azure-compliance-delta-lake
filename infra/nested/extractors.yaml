@@ -5,12 +5,6 @@ Description: "Capa 1: Extractores (Lambdas) - Estructura Plana"
 Parameters:
   BucketName:
     Type: String
-  DatosGovKeyId:
-    Type: String
-    NoEcho: true
-  DatosGovApiKey:
-    Type: String
-    NoEcho: true
 
 Globals:
   Function:
@@ -25,7 +19,6 @@ Globals:
         OFAC_SDN_URL: "https://www.treasury.gov/ofac/downloads/sdn.csv"
         OFAC_ALT_URL: "https://www.treasury.gov/ofac/downloads/add.csv"
         ONU_URL: "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
-        PEP_URL: "https://www.datos.gov.co/resource/3qxn-uc22.json?$limit=500000"
 
 Resources:
   ExtractOfacFunction:
@@ -44,19 +37,6 @@ Resources:
       Policies:
         - S3CrudPolicy: { BucketName: !Ref BucketName }
 
-
-  ExtractPepFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: pep_handler.socrata_pep_handler
-      CodeUri: ../../extractors.zip
-      Environment:
-        Variables:
-          DATOS_GOV_KEY_ID: !Ref DatosGovKeyId
-          DATOS_GOV_API_KEY: !Ref DatosGovApiKey
-      Policies:
-        - S3CrudPolicy: { BucketName: !Ref BucketName }
-
   ExtractOpenSanctionsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -70,7 +50,5 @@ Outputs:
     Value: !GetAtt ExtractOfacFunction.Arn
   ExtractOnuArn:
     Value: !GetAtt ExtractOnuFunction.Arn
-  ExtractPepArn:
-    Value: !GetAtt ExtractPepFunction.Arn
   ExtractOpenSanctionsArn:
     Value: !GetAtt ExtractOpenSanctionsFunction.Arn

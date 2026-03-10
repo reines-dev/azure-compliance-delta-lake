@@ -6,7 +6,6 @@ from moto import mock_aws
 from unittest.mock import patch, MagicMock
 from lambdas.ofac_handler import ofac_handler
 from lambdas.onu_handler import onu_handler
-from lambdas.pep_handler import socrata_pep_handler
 from lambdas.opensanctions_handler import opensanctions_proxy_handler
 
 @pytest.fixture(autouse=True)
@@ -22,8 +21,6 @@ def aws_credentials():
 def mock_s3_env(aws_credentials, monkeypatch):
     with mock_aws():
         monkeypatch.setenv('COMPLIANCE_LAKE_BUCKET', 'test-bucket')
-        monkeypatch.setenv('DATOS_GOV_KEY_ID', 'test_key')
-        monkeypatch.setenv('DATOS_GOV_API_KEY', 'test_secret')
         s3 = boto3.client('s3', region_name='us-east-1')
         s3.create_bucket(Bucket='test-bucket')
         yield s3
@@ -42,19 +39,6 @@ def test_all_extractors(mock_request, mock_s3_env):
     # Test ONU
     assert onu_handler({"ONU_URL": "http://mock"}, None)['status'] == 'success'
     
-    # Test PEP (also testing auth injection when vars exist)
-    assert socrata_pep_handler({"PEP_URL": "http://mock"}, None)['status'] == 'success'
-    
-    # Test PEP Fallback to GET
-    mock_resp.status = 500
-    mock_resp_get = MagicMock()
-    mock_resp_get.status = 200
-    mock_resp_get.data = b"id,name\n1,TEST DATA"
-    mock_request.side_effect = [mock_resp, mock_resp_get] # First POST fails, GET succeeds
-    assert socrata_pep_handler({"PEP_URL": "http://mock/query.json"}, None)['status'] == 'success'
-    mock_request.side_effect = None # Reset side effect
-    mock_request.return_value = mock_resp_get
-    
     # Test OpenSanctions
     assert opensanctions_proxy_handler({"source_id": "fbi_wanted"}, None)['status'] == 'success'
 
@@ -72,13 +56,6 @@ def test_all_extractors_exceptions(mock_request, mock_s3_env, monkeypatch):
         
     with pytest.raises(Exception, match="Failed to download data"):
         opensanctions_proxy_handler({"source_id": "fbi"}, None)
-        
-    with pytest.raises(Exception, match="Failed to download data"):
-        # Ensure PEP has the required variables to get past the initial validation
-        monkeypatch.setenv('DATOS_GOV_KEY_ID', 'test_key')
-        monkeypatch.setenv('DATOS_GOV_API_KEY', 'test_secret')
-        # PEP does two requests if POST fails, both mocking 500 here
-        socrata_pep_handler({"PEP_URL": "http://mock"}, None)
 
 def test_missing_payloads(mock_s3_env, monkeypatch):
     with pytest.raises(ValueError, match="OFAC_SDN_URL"):
@@ -86,12 +63,6 @@ def test_missing_payloads(mock_s3_env, monkeypatch):
         
     with pytest.raises(ValueError, match="ONU_URL"):
         onu_handler({}, None)
-        
-    with pytest.raises(ValueError, match="PEP_URL, DATOS_GOV_KEY_ID o DATOS_GOV_API_KEY"):
-        # Providing URL but ensuring no credentials exist
-        monkeypatch.delenv('DATOS_GOV_KEY_ID', raising=False)
-        monkeypatch.delenv('DATOS_GOV_API_KEY', raising=False)
-        socrata_pep_handler({"PEP_URL": "http://mock"}, None)
         
     with pytest.raises(ValueError, match="source_id"):
         opensanctions_proxy_handler({}, None)
