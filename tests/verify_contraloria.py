@@ -1,6 +1,8 @@
 import requests
 
-BASE_URL = "https://9m9yj00e81.execute-api.us-east-1.amazonaws.com/prod/check/"
+BASE_URL = "https://1plkktk2ak.execute-api.us-east-1.amazonaws.com/prod/check/"
+API_KEY = "yKEM6Phs6rW5Pb9j04Sl1AayX5KsL5w9Zqb85X25"
+HEADERS = {"x-api-key": API_KEY}
 
 def test_contraloria():
     # Caso 1: Hit (Nombre común en listas de responsables fiscales)

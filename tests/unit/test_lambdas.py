@@ -58,6 +58,10 @@ def test_all_extractors_exceptions(mock_request, mock_s3_env, monkeypatch):
         opensanctions_proxy_handler({"source_id": "fbi"}, None)
 
 def test_missing_payloads(mock_s3_env, monkeypatch):
+    # Asegurar que no existan en el entorno para forzar el error
+    monkeypatch.delenv("OFAC_SDN_URL", raising=False)
+    monkeypatch.delenv("ONU_URL", raising=False)
+    
     with pytest.raises(ValueError, match="OFAC_SDN_URL"):
         ofac_handler({}, None)
         

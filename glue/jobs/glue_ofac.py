@@ -91,7 +91,7 @@ transformed_df = transformed_df.fillna("-", subset=["identificacion", "tipo_enti
 logger.info(f"Writing transformed data to {gold_path} partitioned by fuente")
 
 transformed_df.write \
-    .mode("overwrite") \
+    .mode("append") \
     .partitionBy("fuente") \
     .parquet(f"{gold_path}/")
 

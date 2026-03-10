@@ -1,7 +1,9 @@
 import requests
 import json
 
-BASE_URL = "https://9m9yj00e81.execute-api.us-east-1.amazonaws.com/prod/check/"
+BASE_URL = "https://1plkktk2ak.execute-api.us-east-1.amazonaws.com/prod/check/"
+API_KEY = "yKEM6Phs6rW5Pb9j04Sl1AayX5KsL5w9Zqb85X25"
+HEADERS = {"x-api-key": API_KEY}
 
 test_cases = [
     # (Nombre, Hit Esperado, Descripcion)
@@ -21,7 +23,7 @@ def run_tests():
     
     for name, expected, desc in test_cases:
         try:
-            resp = requests.get(BASE_URL, params={"name": name, "threshold": 75, "limit": 1})
+            resp = requests.get(BASE_URL, params={"name": name, "threshold": 75, "limit": 1}, headers=HEADERS)
             data = resp.json()
             actual = data.get("match_found", False)
             status = "✅ OK" if actual == expected else "❌ FAIL"
