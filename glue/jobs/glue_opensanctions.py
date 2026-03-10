@@ -47,28 +47,26 @@ try:
     clean_string_udf = udf(clean_string, StringType())
 
     # 3. Transform OpenSanctions Structure
-    # OpenSanctions FTM Scheme typically has:
-    # id: Hash principal
-    # schema: "Person", "Organization", "Vessel"
-    # properties.name: Array of strings
-    # properties.nationality: Array of strings
-    
-    # Extraer el primer elemento del arreglo properties.name y properties.notes si aplican
-    # Es seguro castear a string un arreglo JSON para extracciones rápidas
+    # Check schema for existing properties to avoid AnalysisException
+    available_properties = []
+    if "properties" in raw_df.schema.names:
+        available_properties = raw_df.schema["properties"].dataType.names
+
+    # Definir columnas dinámicas basadas en la existencia en el esquema
+    notes_col = col("properties.notes").cast("string") if "notes" in available_properties else lit("")
+    topics_col = col("properties.topics").cast("string") if "topics" in available_properties else lit("")
+    name_col = col("properties.name")[0] if "name" in available_properties else lit("-")
+
     transformed_df = raw_df.select(
         md5(concat_ws("-", lit(source_id.upper()), col("id"))).alias("id_unico"),
-        # Tomar el string literal de las properties
-        col("properties.name")[0].alias("nombre_original"),
-        clean_string_udf(col("properties.name")[0]).alias("nombre_limpio"),
-        # Identification varies greatly, using - as standard
+        name_col.alias("nombre_original"),
+        clean_string_udf(name_col).alias("nombre_limpio"),
         lit("-").alias("identificacion"),
         col("schema").alias("tipo_entidad"),
         lit("SANCIONES").alias("tipo_lista"),
         date_format(current_date(), "yyyy-MM-dd").alias("fecha_carga"),
         lit(source_id.upper()).alias("fuente"),
-        
-        # Meta info
-        concat_ws(" | Topics: ", col("properties.topics").cast("string"), col("properties.notes").cast("string")).alias("metadata")
+        concat_ws(" | Topics: ", topics_col, notes_col).alias("metadata")
     )
 
     transformed_df = transformed_df.fillna("-", subset=["identificacion", "tipo_entidad", "nombre_original", "nombre_limpio"])

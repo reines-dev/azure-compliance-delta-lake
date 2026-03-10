@@ -26,86 +26,86 @@ Resources:
             Description: "Ejecuta el ETL 2 veces por semana (Miercoles y Domingos) a las 05:30 AM Hora Local (10:30 UTC)."
             Enabled: true
       Definition:
-        Comment: "Orquestador ELT modular (Nested)"
-        StartAt: ParallelExtraction
+        Comment: "Orquestador ELT Secuencial"
+        StartAt: ExtractOFAC
         States:
-          ParallelExtraction:
-            Type: Parallel
+          # --- FLUJO OFAC ---
+          ExtractOFAC:
+            Type: Task
+            Resource: !Ref ExtractOfacArn
+            Parameters:
+              "OFAC_SDN_URL": "https://www.treasury.gov/ofac/downloads/sdn.csv"
+            ResultPath: null
+            Next: TransformOFAC
+          TransformOFAC:
+            Type: Task
+            Resource: arn:aws:states:::glue:startJobRun.sync
+            Parameters:
+              JobName: !Ref OfacJob
+              Arguments:
+                "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+                "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
+            Next: ExtractONU
+
+          # --- FLUJO ONU ---
+          ExtractONU:
+            Type: Task
+            Resource: !Ref ExtractOnuArn
+            Parameters:
+              "ONU_URL": "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
+            ResultPath: null
+            Next: TransformONU
+          TransformONU:
+            Type: Task
+            Resource: arn:aws:states:::glue:startJobRun.sync
+            Parameters:
+              JobName: !Ref OnuJob
+              Arguments:
+                "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+                "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
+            Next: OpenSanctionsMultiSource
+
+          # --- FLUJO OPENSANCTIONS (DINÁMICO CON MAP) ---
+          OpenSanctionsMultiSource:
+            Type: Pass
+            Result:
+              - "us_fbi_most_wanted"
+              - "us_dea_fugitives"
+              - "interpol_red_notices"
+              - "worldbank_debarred"
+              - "eu_fsf"
+              - "gb_hmt_sanctions"
+            ResultPath: "$.sources"
+            Next: MapOpenSanctions
+          MapOpenSanctions:
+            Type: Map
+            MaxConcurrency: 3
+            ItemsPath: "$.sources"
+            Parameters:
+              "source_id.$": "$$.Map.Item.Value"
+            Iterator:
+              StartAt: ExtractOpenSanctionsItem
+              States:
+                ExtractOpenSanctionsItem:
+                  Type: Task
+                  Resource: !Ref ExtractOpenSanctionsArn
+                  Parameters:
+                    "source_id.$": "$.source_id"
+                  ResultPath: "$.extraction_result"
+                  Next: TransformOpenSanctionsItem
+                TransformOpenSanctionsItem:
+                  Type: Task
+                  Resource: arn:aws:states:::glue:startJobRun.sync
+                  Parameters:
+                    JobName: !Ref OpenSanctionsJob
+                    Arguments:
+                      "--OPENSANCTIONS_SOURCE_ID.$": "$.source_id"
+                      "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
+                      "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
+                  End: true
             Next: RunCrawler
-            Branches:
-              - StartAt: ExtractOFAC
-                States:
-                  ExtractOFAC:
-                    Type: Task
-                    Resource: !Ref ExtractOfacArn
-                    Parameters:
-                      "OFAC_SDN_URL": "https://www.treasury.gov/ofac/downloads/sdn.csv"
-                    Next: TransformOFAC
-                  TransformOFAC:
-                    Type: Task
-                    Resource: arn:aws:states:::glue:startJobRun.sync
-                    Parameters:
-                      JobName: !Ref OfacJob
-                      Arguments:
-                        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
-                        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
-                    End: true
-              - StartAt: ExtractONU
-                States:
-                  ExtractONU:
-                    Type: Task
-                    Resource: !Ref ExtractOnuArn
-                    Parameters:
-                      "ONU_URL": "https://scsanctions.un.org/resources/xml/en/consolidated.xml"
-                    Next: TransformONU
-                  TransformONU:
-                    Type: Task
-                    Resource: arn:aws:states:::glue:startJobRun.sync
-                    Parameters:
-                      JobName: !Ref OnuJob
-                      Arguments:
-                        "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
-                        "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
-                    End: true
-              - StartAt: OpenSanctionsMultiSource
-                States:
-                  OpenSanctionsMultiSource:
-                    Type: Pass
-                    Result:
-                      - "us_fbi_most_wanted"
-                      - "us_dea_fugitives"
-                      - "interpol_red_notices"
-                      - "worldbank_debarred"
-                      - "eu_fsf"
-                      - "gb_hmt_sanctions"
-                    ResultPath: "$.sources"
-                    Next: MapOpenSanctions
-                  MapOpenSanctions:
-                    Type: Map
-                    ItemsPath: "$.sources"
-                    Parameters:
-                      "source_id.$": "$$.Map.Item.Value"
-                    Iterator:
-                      StartAt: ExtractOpenSanctionsItem
-                      States:
-                        ExtractOpenSanctionsItem:
-                          Type: Task
-                          Resource: !Ref ExtractOpenSanctionsArn
-                          Parameters:
-                            "source_id.$": "$.source_id"
-                          ResultPath: "$.extraction_result"
-                          Next: TransformOpenSanctionsItem
-                        TransformOpenSanctionsItem:
-                          Type: Task
-                          Resource: arn:aws:states:::glue:startJobRun.sync
-                          Parameters:
-                            JobName: !Ref OpenSanctionsJob
-                            Arguments:
-                              "--OPENSANCTIONS_SOURCE_ID.$": "$.source_id"
-                              "--LANDING_ZONE_PATH": !Sub "s3://${BucketName}/landing/listas"
-                              "--GOLD_ZONE_PATH": !Sub "s3://${BucketName}/gold/listas"
-                          End: true
-                    End: true
+            
+          # --- FINALIZACIÓN ---
           RunCrawler:
             Type: Task
             Resource: arn:aws:states:::aws-sdk:glue:startCrawler
@@ -125,4 +125,4 @@ Resources:
                 - glue:BatchStopJobRun
                 - glue:StartCrawler
                 - glue:GetCrawler
-              Resource: "*" 
+              Resource: "*"
