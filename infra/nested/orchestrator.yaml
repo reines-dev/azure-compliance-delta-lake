@@ -66,23 +66,44 @@ Resources:
                         "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
                         "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
                     End: true
-              - StartAt: ExtractOpenSanctions
+              - StartAt: OpenSanctionsMultiSource
                 States:
-                  ExtractOpenSanctions:
-                    Type: Task
-                    Resource: !Ref ExtractOpenSanctionsArn
+                  OpenSanctionsMultiSource:
+                    Type: Pass
+                    Result:
+                      - "us_fbi_most_wanted"
+                      - "us_dea_fugitives"
+                      - "interpol_red_notices"
+                      - "worldbank_debarred"
+                      - "eu_fsf"
+                      - "ca_dfatd_sanctions"
+                      - "gb_hmt_sanctions"
+                    ResultPath: "$.sources"
+                    Next: MapOpenSanctions
+                  MapOpenSanctions:
+                    Type: Map
+                    ItemsPath: "$.sources"
                     Parameters:
-                      "source_id": "us_fbi_most_wanted"
-                    Next: TransformOpenSanctions
-                  TransformOpenSanctions:
-                    Type: Task
-                    Resource: arn:aws:states:::glue:startJobRun.sync
-                    Parameters:
-                      JobName: !Ref OpenSanctionsJob
-                      Arguments:
-                        "--OPENSANCTIONS_SOURCE_ID": "us_fbi_most_wanted"
-                        "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
-                        "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
+                      "source_id.$": "$$.Map.Item.Value"
+                    Iterator:
+                      StartAt: ExtractOpenSanctionsItem
+                      States:
+                        ExtractOpenSanctionsItem:
+                          Type: Task
+                          Resource: !Ref ExtractOpenSanctionsArn
+                          Parameters:
+                            "source_id.$": "$.source_id"
+                          Next: TransformOpenSanctionsItem
+                        TransformOpenSanctionsItem:
+                          Type: Task
+                          Resource: arn:aws:states:::glue:startJobRun.sync
+                          Parameters:
+                            JobName: !Ref OpenSanctionsJob
+                            Arguments:
+                              "--OPENSANCTIONS_SOURCE_ID.$": "$.source_id"
+                              "--LANDING_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/landing/listas"
+                              "--GOLD_ZONE_PATH": "s3://reinesdev-compliance-lake-prd/gold/listas"
+                          End: true
                     End: true
           RunCrawler:
             Type: Task
